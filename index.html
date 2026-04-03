@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROLETA DE PUNIÇÃO</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body {
+    width:100vw; height:100vh; overflow:hidden;
+    font-family:'Rajdhani',sans-serif;
+    background: url('https://i.imgur.com/7E9dAPN.jpeg') center/cover no-repeat fixed;
+  }
+
+  body::before {
+    content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background: radial-gradient(ellipse at center, rgba(80,0,120,0.45) 0%, rgba(5,0,15,0.72) 100%);
+  }
+  body::after {
+    content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+    background: repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);
+  }
+
+  /* ── CHAT FLOATERS (z:1, behind everything) ── */
+  #chatLayer {
+    position:fixed; inset:0; z-index:1; pointer-events:none; overflow:hidden;
+  }
+  .chat-pop {
+    position:absolute;
+    font-family:'Rajdhani',sans-serif;
+    font-size:1.55rem; font-weight:700;
+    white-space:nowrap;
+    max-width:520px;
+    overflow:hidden; text-overflow:ellipsis;
+    animation: floatUp 5s ease-out forwards;
+    padding:6px 14px;
+    border-radius:10px;
+    background:rgba(0,0,0,0.28);
+    letter-spacing:0.5px;
+  }
+  @keyframes floatUp {
+    0%   { opacity:0; transform:translateY(0); }
+    12%  { opacity:1; }
+    78%  { opacity:0.85; }
+    100% { opacity:0; transform:translateY(-32px); }
+  }
+
+  /* ── CENTER ── */
+  .center-col {
+    position:relative; z-index:2;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    height:100vh; gap:clamp(8px,1.2vh,18px);
+    padding:16px;
+  }
+
+  /* TITLE */
+  .title-wrap {
+  position: relative;
+  top: 0px; /* POSICAO DO TÍTULO */
+  margin-bottom: -10px; /* COMPENSA O ESPAÇO */
+}
+
+.title-wrap h1 {
+  font-family:'Orbitron',monospace;
+  font-size:clamp(2.6rem,5vw,4.2rem); /* AUMENTADO EM 2 */
+  font-weight:900; color:#fff; text-align:center;
+  text-transform:uppercase; letter-spacing:3px;
+  text-shadow:0 0 12px #bf00ff, 0 0 35px #7b00ff;
+}
+
+  /* WHEEL */
+  .wheel-outer {
+    position:relative;
+    /* Fill as much vertical space as possible */
+    width: min(72vh, 72vw, 640px);
+    height: min(72vh, 72vw, 640px);
+    flex-shrink:0;
+  }
+
+  canvas#rouletteCanvas {
+    border-radius:50%; display:block;
+    position:relative; z-index:2;
+    width:100%; height:100%;
+  }
+
+  /* Pointer on the RIGHT side, pointing LEFT (arrow tip at 3 o'clock of the wheel) */
+  .pointer {
+    position:absolute; top:50%; right:-28px;
+    transform:translateY(-50%); z-index:10;
+    width:0; height:0;
+    border-top:20px solid transparent;
+    border-bottom:20px solid transparent;
+    border-right:40px solid #ff00cc;
+    filter:drop-shadow(0 0 8px #ff00cc);
+  }
+
+  /* CENTER HUB */
+  .center-hub {
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    width:clamp(42px,7%,64px); height:clamp(42px,7%,64px);
+    border-radius:50%;
+    background:radial-gradient(circle,#1a0030,#0a0015);
+    border:3px solid #bf00ff;
+    box-shadow:0 0 16px #bf00ff66,inset 0 0 8px #7b00ff44;
+    z-index:10; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; transition:all 0.2s;
+  }
+  .center-hub:hover { transform:translate(-50%,-50%) scale(1.1); border-color:#ff00cc; }
+  .center-hub span {
+    font-family:'Orbitron',monospace; font-size:0.5rem;
+    color:#fff; font-weight:700; text-align:center; line-height:1.1;
+  }
+
+  /* SPIN BUTTON */
+  .spin-btn {
+    font-family:'Orbitron',monospace;
+    font-size:clamp(0.85rem,1.8vw,1.3rem);
+    font-weight:900; text-transform:uppercase; letter-spacing:3px; color:#fff;
+    background:linear-gradient(135deg,#7b00ff,#bf00ff,#ff00cc);
+    border:none; padding:clamp(10px,1.5vh,16px) clamp(30px,4vw,60px);
+    border-radius:60px; cursor:pointer;
+    position:relative; overflow:hidden;
+    box-shadow:0 0 20px #bf00ff66; transition:all 0.3s;
+  }
+  .spin-btn::before {
+    content:''; position:absolute; inset:0;
+    background:linear-gradient(135deg,transparent 30%,rgba(255,255,255,0.15) 50%,transparent 70%);
+    transform:translateX(-100%); transition:transform 0.5s;
+  }
+  .spin-btn:hover::before { transform:translateX(100%); }
+  .spin-btn:hover { transform:scale(1.04); box-shadow:0 0 28px #ff00cc88; }
+  .spin-btn:disabled { opacity:0.45; cursor:not-allowed; transform:none; }
+
+  /* RESULT */
+  .result-panel {
+    width:min(72vh,72vw,640px);
+    background:rgba(10,0,20,0.88);
+    border:1px solid #bf00ff33; border-radius:14px;
+    padding:clamp(10px,1.5vh,18px) 24px;
+    backdrop-filter:blur(12px); text-align:center;
+    min-height:48px; display:flex; align-items:center; justify-content:center;
+  }
+  .result-text {
+    font-family:'Orbitron',monospace;
+    font-size:clamp(0.7rem,2vw,1.25rem);
+    color:#fff; font-weight:700;
+    text-shadow:0 0 12px #bf00ff; line-height:1.3;
+    opacity:0; transform:scale(0.85);
+    transition:all 0.5s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .result-text.show { opacity:1; transform:scale(1); }
+  .result-text.winner { animation:winner-pulse 0.7s ease-in-out 3; }
+  @keyframes winner-pulse {
+    0%,100% { text-shadow:0 0 12px #bf00ff; }
+    50% { text-shadow:0 0 24px #ff00cc,0 0 55px #ff00cc88; color:#ff88ff; }
+  }
+
+  /* OPTIONS PILL */
+  .options-pill {
+    position:fixed; top:16px; right:16px; z-index:300;
+    font-family:'Orbitron',monospace; font-size:0.58rem;
+    font-weight:700; letter-spacing:2px; color:#00f5ff;
+    background:rgba(10,0,25,0.85); border:1px solid #bf00ff44;
+    border-radius:20px; padding:7px 16px; cursor:pointer;
+    text-shadow:0 0 8px #00f5ff88; box-shadow:0 0 10px #7b00ff33;
+    transition:all 0.2s; user-select:none;
+  }
+  .options-pill:hover { border-color:#bf00ff99; }
+
+  /* OPTIONS MODAL */
+  .options-overlay {
+    position:fixed; inset:0; z-index:400;
+    background:rgba(0,0,0,0.55); backdrop-filter:blur(4px);
+    display:none; align-items:center; justify-content:center;
+  }
+  .options-overlay.open { display:flex; }
+  .options-modal {
+    background:rgba(8,0,20,0.97); border:1px solid #bf00ff44; border-radius:16px;
+    width:min(500px,92vw); max-height:82vh;
+    display:flex; flex-direction:column; overflow:hidden;
+    box-shadow:0 0 40px #7b00ff44;
+  }
+  .modal-header {
+    font-family:'Orbitron',monospace; font-size:0.65rem;
+    font-weight:700; letter-spacing:3px; color:#00f5ff;
+    text-shadow:0 0 8px #00f5ff88; padding:14px 18px 10px;
+    border-bottom:1px solid #bf00ff22;
+    display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+  }
+  .modal-close {
+    background:none; border:none; color:#ff00cc88;
+    font-size:1rem; cursor:pointer; transition:color 0.2s; line-height:1;
+  }
+  .modal-close:hover { color:#ff00cc; }
+  .options-list {
+    flex:1; overflow-y:auto; padding:8px 12px;
+    scrollbar-width:thin; scrollbar-color:#bf00ff44 transparent;
+  }
+  .options-list::-webkit-scrollbar { width:4px; }
+  .options-list::-webkit-scrollbar-thumb { background:#bf00ff44; border-radius:4px; }
+  .option-row { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid #ffffff08; }
+  .option-label { flex:1; font-size:0.68rem; color:#ddd; line-height:1.2; font-family:'Rajdhani',sans-serif; }
+  .option-chance { font-family:'Orbitron',monospace; font-size:0.52rem; color:#bf00ff; white-space:nowrap; min-width:42px; text-align:right; }
+  .option-remove {
+    background:none; border:1px solid #ff00cc44; color:#ff00cc88;
+    border-radius:4px; width:20px; height:20px; font-size:0.65rem;
+    cursor:pointer; flex-shrink:0; transition:all 0.2s;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .option-remove:hover { background:#ff00cc22; color:#ff00cc; border-color:#ff00cc; }
+  .add-form {
+    padding:10px 12px; border-top:1px solid #bf00ff22;
+    flex-shrink:0; display:flex; flex-direction:column; gap:7px;
+  }
+  .add-form input {
+    background:rgba(191,0,255,0.08); border:1px solid #bf00ff33;
+    border-radius:6px; color:#fff; font-family:'Rajdhani',sans-serif;
+    font-size:0.78rem; padding:6px 10px; outline:none; width:100%;
+    transition:border-color 0.2s;
+  }
+  .add-form input:focus { border-color:#bf00ff88; }
+  .add-form input::placeholder { color:#ffffff33; }
+  .add-form-row { display:flex; gap:8px; }
+  .weight-input { width:80px !important; flex-shrink:0; }
+  .add-btn {
+    flex:1; background:linear-gradient(135deg,#7b00ff,#bf00ff);
+    border:none; border-radius:6px; color:#fff;
+    font-family:'Orbitron',monospace; font-size:0.6rem;
+    font-weight:700; letter-spacing:1px; cursor:pointer; padding:6px; transition:all 0.2s;
+  }
+  .add-btn:hover { background:linear-gradient(135deg,#9900ff,#ff00cc); }
+
+  /* SAVE/LOAD */
+  .save-load-row {
+    padding:8px 12px; border-top:1px solid #bf00ff22;
+    flex-shrink:0; display:flex; gap:8px; align-items:center;
+  }
+  .save-btn {
+    flex:1; background:linear-gradient(135deg,#004444,#006666);
+    border:1px solid #00f5ff44; border-radius:6px; color:#00f5ff;
+    font-family:'Orbitron',monospace; font-size:0.55rem;
+    font-weight:700; letter-spacing:1px; cursor:pointer; padding:7px 6px; transition:all 0.2s;
+  }
+  .save-btn:hover { background:linear-gradient(135deg,#005555,#00aaaa); border-color:#00f5ff99; }
+  .load-btn {
+    flex:1; background:linear-gradient(135deg,#440044,#660066);
+    border:1px solid #ff00cc44; border-radius:6px; color:#ff88ff;
+    font-family:'Orbitron',monospace; font-size:0.55rem;
+    font-weight:700; letter-spacing:1px; cursor:pointer; padding:7px 6px; transition:all 0.2s;
+  }
+  .load-btn:hover { background:linear-gradient(135deg,#660066,#990099); border-color:#ff00cc99; }
+  .save-msg {
+    font-family:'Rajdhani',sans-serif; font-size:0.7rem;
+    color:#00f5ff; text-align:center; min-height:16px;
+    opacity:0; transition:opacity 0.3s;
+  }
+  .save-msg.show { opacity:1; }
+
+  /* CORNERS */
+  .corner-gif { position:fixed; bottom:12px; right:12px; width:52px; z-index:100; opacity:0.9; }
+  .corner-img {
+    position:fixed; bottom:12px; left:12px; width:90px; z-index:100;
+    animation:float 3s ease-in-out infinite;
+    filter:drop-shadow(0 0 8px #bf00ff88);
+  }
+  @keyframes float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-10px);} }
+
+  /* CONFETTI */
+  .confetti-container { position:fixed; inset:0; pointer-events:none; z-index:200; overflow:hidden; }
+
+  /* YT hidden */
+  #ytPlayerWrap { position:fixed; left:-9999px; top:-9999px; width:1px; height:1px; opacity:0; pointer-events:none; }
+.topo-esquerda {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  width: 120px;
+  z-index: 50;
+  pointer-events: none;
+  animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px #bf00ff88);
+}
+
+.meio-esquerda, .meio-direita {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 150px;
+  z-index: 50;
+  pointer-events: none;
+  animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 8px #bf00ff88);
+}
+
+.meio-esquerda {
+  left: 20px;
+}
+
+.meio-direita {
+  right: 20px;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-10px) translateX(0); }
+}
+</style>
+</head>
+<body>
+
+<!-- z:1 — chat floaters behind everything -->
+<div id="chatLayer"></div>
+
+<div class="confetti-container" id="confettiContainer"></div>
+<div id="ytPlayerWrap"><div id="ytPlayer"></div><div id="ytPlayer2"></div></div>
+
+<img class="topo-esquerda" src="https://i.imgur.com/pB8hZ4W.gif" alt="">
+<img class="meio-esquerda" src="https://i.imgur.com/uw6Cdec.gif" alt="">
+<img class="meio-direita" src="https://i.imgur.com/0bWNc5D.gif" alt="">
+
+<div class="center-col">
+  <div class="title-wrap"><h1>A ROLETA</h1></div>
+
+  <div class="wheel-outer">
+    <canvas id="rouletteCanvas"></canvas>
+    <div class="pointer"></div>
+    <div class="center-hub" onclick="spinWheel()"><span>GIRAR</span></div>
+  </div>
+
+  <button class="spin-btn" id="spinBtn" onclick="spinWheel()">GIRAR</button>
+
+  <div class="result-panel">
+    <div class="result-text" id="resultText">Aguardando...</div>
+  </div>
+</div>
+<div class="options-pill" onclick="openModal()">+ Opcoes da Roleta</div>
+
+<div class="options-overlay" id="optionsOverlay" onclick="overlayClick(event)">
+  <div class="options-modal">
+    <div class="modal-header">
+      <span>Opcoes da Roleta</span>
+      <button class="modal-close" onclick="closeModal()">&#x2715;</button>
+    </div>
+    <div class="options-list" id="optionsList"></div>
+    <div class="add-form">
+      <input type="text" id="newLabel" placeholder="Nome da opcao...">
+      <div class="add-form-row">
+        <input type="number" id="newWeight" class="weight-input" placeholder="Peso" min="1" value="10">
+        <button class="add-btn" onclick="addOption()">+ ADICIONAR</button>
+      </div>
+    </div>
+    <div class="save-load-row">
+      <button class="save-btn" onclick="saveConfig()">&#128190; SALVAR</button>
+      <button class="load-btn" onclick="loadConfig()">&#128194; CARREGAR</button>
+      <input type="file" id="loadFileInput" accept=".json" style="display:none" onchange="handleLoadFile(event)">
+    </div>
+    <div class="save-msg" id="saveMsg"></div>
+  </div>
+</div>
+<img class="corner-gif" src="https://i.imgur.com/QQVETWq.gif" alt="">
+<img class="corner-img" src="https://i.imgur.com/Y5Ph3n8.png" alt="">
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+let items = [
+  {weight:25,label:"CONVIDADAS ESPECIAIS\n(UMA DAS CACHORRAS NA LIVE)"},
+  {weight:25,label:"DAR UM PULINHO\nIMITANDO O MARIO"},
+  {weight:65,label:"TWEETAR HORA E DIA ATUAL"},
+  {weight:25,label:"FAMILY FRIENDLY\n(palavrao = roleta 5min)"},
+  {weight:10,label:"PEDIR SUGESTAO PRO CHAT GPT\nDO QUE FAZER (5 MIN)"},
+  {weight:50,label:"TAPINHA NA CARA"},
+  {weight:1, label:"SORTEIO DE SUB"},
+  {weight:50,label:"ENCARAR A CAMERA\nPOR 1 MINUTO"},
+  {weight:25,label:"TROCAR WALLPAPER DO PC"},
+  {weight:2, label:"DOAR 1 REAL\nPARA A CARIDADE"},
+  {weight:7, label:"JOGAR JOGO DE NINTENDO\nANTIGO POR 30 MIN"},
+  {weight:20,label:"VER 1o VIDEO DO YOUTUBE\nPESQUISANDO ALGO ALEATORIO"},
+  {weight:2, label:"CALL COM ALGUEM\nDO CHAT POR 5 MIN"},
+  {weight:10,label:"BEBER COPO DE LEITE\n(SEM LEITE = ROLETA)"},
+  {weight:100,label:"BEBER AGUA"},
+  {weight:10,label:"ESTOURAR O SOM DO\nMICROFONE POR 1 MINUTO"},
+  {weight:27,label:"CHAT CONTROLA O TITULO\nDA LIVE POR 5 MINUTOS"},
+  {weight:25,label:"LIGAR PARA ALGUEM NO ZAP"},
+  {weight:25,label:"CONTEXTO DO DIA"},
+  {weight:65,label:"10 POLICHINELOS"},
+  {weight:1, label:"SORTEIO DE VIP"},
+  {weight:10,label:"HAY DAY POR 15 MINUTOS"},
+  {weight:25,label:"LIGAR !SR"},
+  {weight:35,label:"CHAT GIGANTE POR 3 MINUTOS"},
+  {weight:30,label:"IMITAR ALGUEM FAMOSO"},
+  {weight:5, label:"CORTAR 1 MECHA DO CABELO"},
+  {weight:3, label:"LIGAR P/ ALGUEM E FICAR\nCALADO (1 MIN)"},
+  {weight:100,label:"PASSAR AD"},
+  {weight:35,label:"TROCAR DE CAMISA"},
+  {weight:7, label:"CHAT SOMENTE EMOTE (3 MIN)"},
+  {weight:10,label:"ATIVAR NVIDIA EYES (10 MIN)"},
+  {weight:80,label:"SILENCIO OCASIONALMENTE\nINTERROMPIDO POR ALGO"},
+  {weight:10,label:"JOGO ALEATORIO NO ROBLOX"},
+  {weight:60,label:"VER 3 TIKTOKS"},
+  {weight:15,label:"WEBCAM DE FABIO (3 MIN)"},
+  {weight:25,label:"CRIAR NOVO EMOTE PRA LIVE"},
+  {weight:15,label:"MUSICA ALEATORIA DO CHAT"},
+  {weight:10,label:"JOGAR UMA PARTIDA\nDE FREE FIRE"},
+  {weight:25,label:"FICAR DE PE POR 5 MINUTOS"},
+  {weight:35,label:"TIRAR O FABIO POR 5 MIN"},
+  {weight:25,label:"ASSISTIR TENTE NAO RIR\n(rir = roleta)"},
+  {weight:65,label:"STEAM REVIEW DO CHAT"},
+  {weight:10,label:"MINECRAFT CHAOS MOD 15 MIN"},
+  {weight:10,label:"JOGAR SEM OLHAR POR 1 MINUTO"},
+  {weight:30,label:"EXPERIMENTAR JOGO\nALEATORIO GRATIS"},
+  {weight:25,label:"SEM FALAR POR 3 MINUTOS"},
+  {weight:10,label:"MINECRAFT COM MOD\nDO CHAT POR 30 MIN"},
+  {weight:25,label:"PALAVRA SECRETA\n(chat falar = TimeOut)"},
+  {weight:10,label:"JOGAR THE PASSWORD"},
+  {weight:25,label:"MOSTRAR FOTO DO DAENIL\nDA GALERIA"},
+  {weight:15,label:"TIMEOUT EM ALGUEM\nPOR 10 MINUTOS (exceto mods)"},
+  {weight:5, label:"COMPRAR RANDOM KEY\nDA STEAM POR 1 REAL"},
+  {weight:100,label:"REVIEW DE PAGINA\nALEATORIA DA WIKIPEDIA"},
+  {weight:25,label:"JOGO ALEATORIO DO FRIV\nPOR 10 MINUTOS"},
+  {weight:75,label:"TERMO\n(perdeu = roleta)"},
+  {weight:25,label:"VOZ FINA POR 3 MINUTOS"},
+  {weight:35,label:"VIDEO ALEATORIO DO\nMANUAL DO MUNDO"},
+  {weight:1, label:"T.O. DE 1 DIA EM ALGUEM\nALEATORIO"},
+  {weight:20,label:"IMAGEM ALEATORIA NA TELA\nATE O FIM DA LIVE"},
+  {weight:2, label:"SPAM DE EMOJI PERMITIDO\n(3 MIN)"},
+  {weight:5, label:"VER UM VIDEO COM 0 LIKES"},
+  {weight:7, label:"ENTRAR EM CALL ABERTA\n(5 MIN)"},
+  {weight:60,label:"MAIS 1 PECA DE ROUPA"},
+  {weight:60,label:"FALAR UMA FRASE DO CHAT\nEM VOZ ALTA"},
+  {weight:55,label:"TWITTER POR 3 MIN"},
+  {weight:4, label:"REAGIR A UM RAP DE ANIME"},
+  {weight:20,label:"TTS POR 1 PONTO\nPOR 5 MINUTOS"},
+  {weight:20,label:"CLASH ROYALE POR 20 MIN"},
+  {weight:60,label:"CANTAR UMA MUSICA"},
+  {weight:1, label:"REAGIR AO 1o EPISODIO DE\nMINECRAFT DO DAENIL"},
+  {weight:50,label:"CONVERSAR COM ALGUEM\nNO CHARACTERAI"},
+  {weight:11,label:"UMA RODADA DE BINGO"},
+  {weight:65,label:"DESENHAR ALGUEM FAMOSO"},
+  {weight:1, label:"SORTEIO DE 1 REAL\nPRO CHAT"},
+  {weight:5, label:"REAGIR HISTORIA DE ROBLOX"},
+  {weight:10,label:"DESENHAR ALGO NA TESTA"},
+  {weight:1, label:"OUVIR UMA MUSICA DO BTS"},
+  {weight:5, label:"POSTAR UMA FOTO ZOADA\nNO STORIE"},
+  {weight:7, label:"ESTRAGAR O CONTADOR\nNO SERVER"},
+  {weight:70,label:"ALONGAMENTO"},
+  {weight:30,label:"OLHAR O POU"},
+  {weight:3, label:"DAENIL NA COZINHA"},
+  {weight:15,label:"1 PARTIDA DE BEDWARS"},
+  {weight:75,label:"CAMERA GRANDE JOGO\nPEQUENO (5 MIN)"},
+  {weight:5, label:"FOTO DE PERFIL DO PAINT"},
+  {weight:15,label:"VER UM VIDEO DA POPOLEA\nNO YOUTUBE"},
+  {weight:30,label:"FALAR O QUE O CHAT PEDIR\nNA LIVE DE ALGUEM"},
+  {weight:35,label:"UMA PARTIDA DE KUKORO"},
+  {weight:10,label:"REAGIR A VIDEO DE XRACING"},
+  {weight:60,label:"SITE INUTIL\n(THE USELESS WEB)"},
+  {weight:50,label:"PROTECAO\n(NADA ACONTECE) - GIRE 2x"},
+  {weight:10,label:"MINECRAFT HARDCORE 20 MIN\n(MORRER = ROLETA)"},
+  {weight:1, label:"ROLETA 3 VEZES"},
+  {weight:2, label:"JOGAR HABBO COM O\nCHAT (20 MIN)"},
+  {weight:15,label:"MORTAL NA CAMA"},
+  {weight:70,label:"REAGIR A VIDEO ALEATORIO\nDO CHAT"},
+  {weight:30,label:"PEDIR 50 CENTAVOS\nPRA ALGUEM"},
+  {weight:50,label:"ROLAR DE NOVO"},
+  {weight:45,label:"OUVIR PEGA NO BREU"},
+  {weight:20,label:"TWEETAR ALGO ALEATORIO\nQUE O CHAT MANDAR"},
+  {weight:15,label:"VER UM VIDEO DE ROLEPLAY\nDE NAMORADO INTEIRO"},
+  {weight:50,label:"DANCAR A 1a DANCA\nQUE APARECER NO TIKTOK"},
+  {weight:30,label:"UMA RODADA DE KUKORO"},
+  {weight:1, label:"SEGURAR GELO COM SAL"},
+  {weight:50,label:"PASSAR UMA CANTADA\nPRA POPOLEA EM CALL"},
+  {weight:50,label:"JOGAR UM JOGO FEITO PELO DANILO"},
+  {weight:50,label:"MOSTRAR HISTÓRICO DO YOUTUBE"},
+];
+
+const COLORS=[
+  '#5500bb','#7700dd','#9900ff','#bb00ff','#cc00ff',
+  '#dd00ff','#ee00ff','#cc0099','#aa0099','#880088',
+  '#6600cc','#8800ee','#aa00dd','#ff00cc','#ff33cc',
+  '#4400aa','#6600bb','#9900ee','#bb00ee','#ff00aa',
+];
+
+// ============================================================
+// CANVAS
+// ============================================================
+const canvas = document.getElementById('rouletteCanvas');
+const ctx = canvas.getContext('2d');
+const SIZE = 700;
+canvas.width = SIZE; canvas.height = SIZE;
+const CX=SIZE/2, CY=SIZE/2, R=SIZE/2-4;
+
+// Offscreen canvases: one without text (fast rotation), one with text (final display)
+const offStatic = document.createElement('canvas'); offStatic.width=SIZE; offStatic.height=SIZE;
+const ctxS = offStatic.getContext('2d');
+const offFull = document.createElement('canvas'); offFull.width=SIZE; offFull.height=SIZE;
+const ctxF = offFull.getContext('2d');
+
+// ── rotation is ALWAYS kept in [0, 2π) — this is the CANONICAL position ──
+let canonRot = 0;   // current display angle, normalised to [0,2π)
+let spinning = false;
+let animId = null;
+let stopTimeout = null;
+let pendingWinnerIdx = null;
+// Track if YT video actually started
+let ytStarted = false;
+let ytFallbackTimer = null;
+
+// ── TICK SOUND (Web Audio) ──
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+// Resume AudioContext on first user gesture (browser autoplay policy)
+document.addEventListener('click', ()=>{ if(audioCtx.state==='suspended') audioCtx.resume(); }, {once:true});
+function playTick(volume=0.18){
+  try{
+    const buf = audioCtx.createBuffer(1, audioCtx.sampleRate*0.04, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for(let i=0;i<data.length;i++) data[i] = (Math.random()*2-1) * Math.exp(-i/(audioCtx.sampleRate*0.006));
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+    // slight high-pass to make it clicky
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'highpass'; filter.frequency.value = 800;
+    src.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
+    src.start();
+  } catch(e){}
+}
+
+// Track previous slice index to detect when pointer crosses a new slice boundary
+let lastTickSlice = -1;
+
+function getTotalWeight(){ return items.reduce((a,b)=>a+b.weight,0); }
+
+function buildSlices(c){
+  c.clearRect(0,0,SIZE,SIZE);
+  const total=getTotalWeight(); let a=0;
+  items.forEach((item,i)=>{
+    const sl=(item.weight/total)*Math.PI*2;
+    c.beginPath(); c.moveTo(CX,CY); c.arc(CX,CY,R,a,a+sl); c.closePath();
+    c.fillStyle=COLORS[i%COLORS.length]; c.fill();
+    c.strokeStyle='rgba(0,0,0,0.3)'; c.lineWidth=1; c.stroke();
+    a+=sl;
+  });
+}
+
+function buildFullWheel(){
+  buildSlices(ctxF);
+  const total=getTotalWeight(); let a=0;
+  items.forEach((item,i)=>{
+    const sl=(item.weight/total)*Math.PI*2;
+    if(sl>0.014){
+      ctxF.save(); ctxF.translate(CX,CY); ctxF.rotate(a+sl/2); ctxF.textAlign='right';
+      const fs=sl>0.12?10:sl>0.06?8:6.5;
+      ctxF.font=`bold ${fs}px 'Rajdhani',sans-serif`;
+      ctxF.fillStyle='#fff'; ctxF.shadowColor='#000'; ctxF.shadowBlur=5;
+      item.label.split('\n').forEach((ln,li,arr)=>{
+        const oy=(li-(arr.length-1)/2)*(fs+1.5);
+        ctxF.fillText(ln,R-10,oy+fs/3);
+      });
+      ctxF.restore();
+    }
+    a+=sl;
+  });
+  drawHub(ctxF);
+}
+
+function drawHub(c){
+  c.beginPath(); c.arc(CX,CY,32,0,Math.PI*2);
+  const g=c.createRadialGradient(CX,CY,0,CX,CY,32);
+  g.addColorStop(0,'#2a0050'); g.addColorStop(1,'#0a0015');
+  c.fillStyle=g; c.fill();
+  c.strokeStyle='#bf00ff'; c.lineWidth=4; c.stroke();
+}
+
+function paintRotated(src, angle){
+  ctx.clearRect(0,0,SIZE,SIZE);
+  ctx.save(); ctx.translate(CX,CY); ctx.rotate(angle); ctx.drawImage(src,-CX,-CY); ctx.restore();
+}
+
+function rebuildWheels(){
+  buildSlices(ctxS); drawHub(ctxS);
+  buildFullWheel();
+  paintRotated(spinning ? offStatic : offFull, canonRot);
+}
+
+rebuildWheels();
+
+// ============================================================
+// POINTER GEOMETRY
+// The pointer tip is at the RIGHT edge of the wheel outer div.
+// In canvas coordinates that is angle = 0 (3 o'clock).
+// So we want the MIDDLE of the winning slice to land at angle 0.
+// ============================================================
+function getItemMidAngle(idx){
+  // Returns the angle of the midpoint of item[idx] in the STATIC (canonRot=0) frame
+  const total=getTotalWeight(); let acc=0;
+  for(let i=0;i<idx;i++) acc+=items[i].weight;
+  const start=(acc/total)*Math.PI*2;
+  const slice=(items[idx].weight/total)*Math.PI*2;
+  return start + slice/2;
+}
+
+// ============================================================
+// SPIN
+// ============================================================
+function pickWinner(){
+  const total=getTotalWeight(), rand=Math.random()*total; let acc=0;
+  for(let i=0;i<items.length;i++){ acc+=items[i].weight; if(rand<acc) return i; }
+  return items.length-1;
+}
+
+function spinWheel(){
+  if(spinning) return;
+  spinning=true;
+  document.getElementById('spinBtn').disabled=true;
+  document.getElementById('resultText').classList.remove('show','winner');
+
+  const winnerIdx=pickWinner();
+  pendingWinnerIdx=winnerIdx;
+  ytStarted=false;
+
+  if(ytReady && ytPlayer && ytPlayer.loadVideoById){
+    // Escolhe musica aleatoria no momento do clique
+    const videoEscolhido = musicaAleatoria();
+    // Re-cue player2 enquanto player1 carrega, para garantir que esteja pronto
+    if(ytReady2 && ytPlayer2 && ytPlayer2.cueVideoById){
+      ytPlayer2.mute();
+      ytPlayer2.cueVideoById({videoId:'wKw0pvc1HiE', startSeconds:0});
+    }
+    ytPlayer.loadVideoById({videoId: videoEscolhido, startSeconds: 0});
+    ytPlayer.unMute();
+    ytPlayer.setVolume(85);
+    // Fallback: if PLAYING event hasn't fired after 3s, start anyway
+    ytFallbackTimer=setTimeout(()=>{
+      if(!ytStarted && pendingWinnerIdx!==null){
+        const idx=pendingWinnerIdx; pendingWinnerIdx=null;
+        startWheelAnimation(idx);
+      }
+    },3000);
+  } else {
+    // YT not loaded at all — just spin
+    pendingWinnerIdx=null;
+    startWheelAnimation(winnerIdx);
+  }
+}
+
+function startWheelAnimation(winnerIdx){
+  // Clean any leftover timer
+  if(animId){ cancelAnimationFrame(animId); animId=null; }
+  if(stopTimeout){ clearTimeout(stopTimeout); stopTimeout=null; }
+  if(tensionTimer){ clearTimeout(tensionTimer); tensionTimer=null; }
+  // Stop tension sting if still playing from previous spin
+  if(ytReady2 && ytPlayer2 && ytPlayer2.stopVideo) ytPlayer2.stopVideo();
+  lastTickSlice = -1;
+
+  // ── KEY FIX ──
+  // We want the winning slice's mid-angle to end up at 0 (pointer position).
+  // After the wheel has rotated by `canonRot`, a canvas angle θ appears at
+  // screen position θ + canonRot.  For it to appear at 0 we need:
+  //   itemMidAngle + finalRot ≡ 0  (mod 2π)
+  //   finalRot ≡ -itemMidAngle     (mod 2π)
+  // We add enough full extra spins so the motion is always forward (positive).
+  const itemMid = getItemMidAngle(winnerIdx);
+  // Desired canonical final rotation (in [0,2π)):
+  let desiredRot = ((-itemMid) % (Math.PI*2) + Math.PI*2) % (Math.PI*2);
+
+  // How much do we need to travel FROM canonRot TO desiredRot going forward?
+  let delta = desiredRot - canonRot;
+  if(delta <= 0) delta += Math.PI*2;   // always travel at least a tiny bit forward
+
+  // Add extra full spins (12–15 turns) so it looks dramatic
+  const extraSpins = (Math.PI*2) * (12 + Math.floor(Math.random()*4));
+  const totalTravel = delta + extraSpins;
+
+  const startRot = canonRot;
+  const finalRot = startRot + totalTravel;
+
+  const DURATION = 26000;
+  const startTime = performance.now();
+
+  function ease(t){
+    // accelerate for first 15%, then decelerate smoothly
+    if(t<0.15){ const x=t/0.15; return x*x*0.15; }
+    const t2=(t-0.15)/0.85;
+    return 0.15+0.85*(1-Math.pow(1-t2,3));
+  }
+
+  function animate(now){
+    const t=Math.min((now-startTime)/DURATION,1);
+    const cur=startRot+(finalRot-startRot)*ease(t);
+    // Normalise for storage but render raw for smooth animation
+    canonRot = cur % (Math.PI*2); if(canonRot<0) canonRot+=Math.PI*2;
+    paintRotated(offStatic, cur);
+
+    // ── TICK: detect when pointer (angle 0) crosses a new slice ──
+    // The slice "under" the pointer is the one whose range contains (-canonRot mod 2π)
+    {
+      const total=getTotalWeight();
+      const pointerAngle=((-canonRot)%(Math.PI*2)+Math.PI*2)%(Math.PI*2);
+      let acc=0, sliceIdx=0;
+      for(let i=0;i<items.length;i++){
+        acc+=(items[i].weight/total)*Math.PI*2;
+        if(pointerAngle<acc){ sliceIdx=i; break; }
+        sliceIdx=i;
+      }
+      if(sliceIdx!==lastTickSlice){
+        lastTickSlice=sliceIdx;
+        // speed-based volume: fast = quiet, slow = louder
+        const speed=Math.abs((finalRot-startRot)*(1-Math.pow(1-t,2))); // rough derivative proxy
+        const vol = t>0.7 ? 0.35 : t>0.4 ? 0.22 : 0.12;
+        playTick(vol);
+      }
+    }
+
+    if(t<1){ animId=requestAnimationFrame(animate); }
+  }
+  animId=requestAnimationFrame(animate);
+
+  // ── Tension sting: sincronizado com startTime absoluto ──
+  // Dispara exatamente 6s antes do fim da animação, independente de quanto
+  // tempo passou entre spinWheel() e startWheelAnimation() ser chamada.
+  if(tensionTimer){ clearTimeout(tensionTimer); tensionTimer=null; }
+  const tensionDelay = Math.max(0, (startTime + DURATION - 6000) - performance.now());
+  tensionTimer=setTimeout(()=>{
+    // Fade ytPlayer1 volume down
+    if(ytPlayer && ytPlayer.setVolume){
+      let vol=85;
+      const fadeInterval=setInterval(()=>{
+        vol=Math.max(0,vol-7);
+        ytPlayer.setVolume(vol);
+        if(vol<=0) clearInterval(fadeInterval);
+      },120);
+    }
+    // Play tension sting no ytPlayer2
+    if(ytReady2 && ytPlayer2 && ytPlayer2.unMute){
+      ytPlayer2.unMute();
+      ytPlayer2.setVolume(90);
+      ytPlayer2.seekTo(0,true);
+      ytPlayer2.playVideo();
+    }
+  }, tensionDelay);
+
+  const stopDelay = Math.max(0, (startTime + DURATION) - performance.now());
+  stopTimeout=setTimeout(()=>{
+    if(animId){ cancelAnimationFrame(animId); animId=null; }
+    // Set canonical rot to the exact desired value (clean)
+    canonRot=desiredRot;
+    paintRotated(offFull, canonRot);
+    spinning=false;
+    document.getElementById('spinBtn').disabled=false;
+    showResult(winnerIdx);
+    if(ytPlayer && ytPlayer.stopVideo) ytPlayer.stopVideo();
+    // ytPlayer2 continues playing until it finishes naturally
+  }, stopDelay);
+}
+
+// ============================================================
+// RESULT
+// ============================================================
+function showResult(idx){
+  const el=document.getElementById('resultText');
+  el.textContent=items[idx].label.replace(/\n/g,' — ');
+  setTimeout(()=>el.classList.add('show','winner'),80);
+  launchConfetti();
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+function openModal(){ renderOptions(); document.getElementById('optionsOverlay').classList.add('open'); }
+function closeModal(){ document.getElementById('optionsOverlay').classList.remove('open'); }
+function overlayClick(e){ if(e.target===document.getElementById('optionsOverlay')) closeModal(); }
+
+function renderOptions(){
+  const total=getTotalWeight();
+  const list=document.getElementById('optionsList'); list.innerHTML='';
+  items.forEach((item,i)=>{
+    const pct=((item.weight/total)*100).toFixed(2);
+    const row=document.createElement('div'); row.className='option-row';
+    row.innerHTML=`<div class="option-label">${item.label.replace(/\n/g,' ')}</div><div class="option-chance">${pct}%</div><button class="option-remove" onclick="removeOption(${i})">x</button>`;
+    list.appendChild(row);
+  });
+}
+
+function removeOption(idx){ if(items.length<=2) return; items.splice(idx,1); rebuildWheels(); renderOptions(); }
+function addOption(){
+  const label=document.getElementById('newLabel').value.trim();
+  const weight=parseInt(document.getElementById('newWeight').value)||10;
+  if(!label) return;
+  items.push({weight,label});
+  document.getElementById('newLabel').value='';
+  document.getElementById('newWeight').value='10';
+  rebuildWheels(); renderOptions();
+}
+document.getElementById('newLabel').addEventListener('keydown',e=>{ if(e.key==='Enter') addOption(); });
+
+// ============================================================
+// SAVE / LOAD CONFIG
+// ============================================================
+function saveConfig(){
+  const data = { version:1, items: items.map(it=>({weight:it.weight, label:it.label})) };
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'roleta_config.json';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  showSaveMsg('Config salva com sucesso!', '#00f5ff');
+}
+
+function loadConfig(){
+  document.getElementById('loadFileInput').value = '';
+  document.getElementById('loadFileInput').click();
+}
+
+function handleLoadFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const data = JSON.parse(ev.target.result);
+      if(!data.items || !Array.isArray(data.items) || data.items.length < 2){
+        showSaveMsg('Arquivo invalido!', '#ff4466'); return;
+      }
+      const loaded = data.items.filter(it=>it.label && typeof it.weight==='number' && it.weight>0);
+      if(loaded.length < 2){ showSaveMsg('Minimo 2 opcoes!', '#ff4466'); return; }
+      items.length = 0;
+      loaded.forEach(it=>items.push({weight:it.weight, label:it.label}));
+      rebuildWheels(); renderOptions();
+      showSaveMsg('Config carregada! (' + loaded.length + ' opcoes)', '#88ff88');
+    } catch(err){
+      showSaveMsg('Erro ao ler o arquivo!', '#ff4466');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showSaveMsg(msg, color){
+  const el = document.getElementById('saveMsg');
+  el.textContent = msg; el.style.color = color; el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 3000);
+}
+
+// ============================================================
+// YOUTUBE — two players
+// ytPlayer  = main spin music (_EJ_Eeb4e68), plays full 26s then stops
+// ytPlayer2 = tension sting, pre-loaded, fires at 20s mark (26-6)
+// ============================================================
+let ytPlayer=null, ytReady=false;
+let ytPlayer2=null, ytReady2=false;
+let tensionTimer=null;
+
+const ytScript=document.createElement('script');
+ytScript.src='https://www.youtube.com/iframe_api';
+document.head.appendChild(ytScript);
+
+// ============================================================
+// LISTA DE MÚSICAS (global — escolha feita no momento do clique)
+// ============================================================
+const musicasRoleta = [
+  '_EJ_Eeb4e68', // Original
+  '5adrS7l4Oa0', // matcha mochi
+  'LMaG_uOa440', // Hey Ya! Low quality
+  'BUdqgwxFxVo', // happy but its even lower quality
+  'OAyZqDBgTsg', // peaches
+  'yxwZcFOBZ28', // Break Free but Sonic standing alone
+  'ry0RUX5b5pY', // The angry birds theme but it's low quality
+  'hP2Wj--exRE', // lovely sad. by 24gh | slowed + reverb
+  'Y1b-Yb4npnU', // Jack Zankowski - Happy Wheels (Main theme)
+  'inskKqoW-Q8', // Beat it but it never starts beating it
+  'BjP2hLxUaKs', // palhaço 8 bit
+  'wbFxNbLWaRo', // Show do Milhão
+  '4XKGfziuw5c'  // Pagode Japonês
+];
+function musicaAleatoria(){
+  return musicasRoleta[Math.floor(Math.random()*musicasRoleta.length)];
+}
+
+window.onYouTubeIframeAPIReady=function(){
+  // Player 1 — música principal (vídeo neutro; ao girar faz loadVideoById com música aleatória)
+  ytPlayer=new YT.Player('ytPlayer',{
+    height:'1',width:'1',videoId: musicasRoleta[0],
+    playerVars:{autoplay:0,controls:0,mute:1,start:0,playsinline:1},
+    events:{
+      onReady:()=>{ ytReady=true; },
+      onStateChange:(e)=>{
+        // Dispara animação quando o vídeo começa a tocar de verdade
+        if(e.data===YT.PlayerState.PLAYING && pendingWinnerIdx!==null){
+          ytStarted=true;
+          if(ytFallbackTimer){ clearTimeout(ytFallbackTimer); ytFallbackTimer=null; }
+          const idx=pendingWinnerIdx; pendingWinnerIdx=null;
+          startWheelAnimation(idx);
+        }
+      }
+    }
+  });
+
+  // Player 2 — sting de tensão
+  // cueVideoById carrega/bufferiza sem tocar, sem precisar de truques de mute+play+pause
+  ytPlayer2=new YT.Player('ytPlayer2',{
+    height:'1',width:'1',videoId:'wKw0pvc1HiE',
+    playerVars:{autoplay:0,controls:0,mute:0,start:0,playsinline:1},
+    events:{
+      onReady:()=>{
+        ytReady2=true;
+        // Bufferiza sem tocar — pronto para disparar instantaneamente
+        ytPlayer2.mute();
+        ytPlayer2.cueVideoById({videoId:'wKw0pvc1HiE',startSeconds:0});
+      }
+    }
+  });
+};
+
+// ============================================================
+// CONFETTI
+// ============================================================
+function launchConfetti(){
+  const cont=document.getElementById('confettiContainer'); cont.innerHTML='';
+  if(!document.getElementById('confettiStyle')){
+    const s=document.createElement('style'); s.id='confettiStyle';
+    s.textContent=`@keyframes confettiFall{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}`;
+    document.head.appendChild(s);
+  }
+  const colors=['#bf00ff','#ff00cc','#00f5ff','#fff','#7b00ff','#ff88ff'];
+  for(let i=0;i<80;i++){
+    const p=document.createElement('div');
+    const c=colors[Math.floor(Math.random()*colors.length)], sz=5+Math.random()*9;
+    p.style.cssText=`position:absolute;left:${Math.random()*100}vw;top:-20px;width:${sz}px;height:${sz}px;background:${c};border-radius:${Math.random()>.5?'50%':'2px'};animation:confettiFall ${2+Math.random()*2}s ${Math.random()*1.5}s ease-in forwards;`;
+    cont.appendChild(p);
+  }
+  setTimeout(()=>{ cont.innerHTML=''; },5000);
+}
+
+// ============================================================
+// TWITCH CHAT via WebSocket (anonymous, no UI)
+// Reads messages and spawns floating text popups at random positions
+// ============================================================
+(function connectTwitchChat(){
+  const CHANNEL='daenil';
+  const chatLayer=document.getElementById('chatLayer');
+  const usedPositions=[];
+  const TAB_W=window.innerWidth, TAB_H=window.innerHeight;
+
+  function getPosition(){
+    // avoid corners where UI elements are
+    const margin=120;
+    const x=margin+Math.random()*(TAB_W-margin*2-260);
+    const y=margin+Math.random()*(TAB_H-margin*2);
+    return {x,y};
+  }
+
+  const CHAT_COLORS=[
+    '#ff00cc','#00f5ff','#bf00ff','#ff6600','#00ff88',
+    '#ffdd00','#ff4466','#44ffdd','#ff88ff','#88ff44',
+    '#ff9900','#00ccff','#ee00ff','#ff0066','#66ff00',
+  ];
+  // stable color per username
+  function userColor(name){
+    let h=0; for(let i=0;i<name.length;i++) h=(h*31+name.charCodeAt(i))&0xffffff;
+    return CHAT_COLORS[Math.abs(h)%CHAT_COLORS.length];
+  }
+
+  function spawnPop(user,msg){
+    const el=document.createElement('div');
+    el.className='chat-pop';
+    const {x,y}=getPosition();
+    const col=userColor(user);
+    el.style.left=x+'px'; el.style.top=y+'px';
+    el.style.color=col;
+    el.style.textShadow=`0 0 8px ${col}, 0 0 20px ${col}88, 0 1px 4px #000`;
+    el.innerHTML=`<span style="color:#fff;opacity:0.7;font-size:0.9em">${user}:</span> ${msg}`;
+    chatLayer.appendChild(el);
+    setTimeout(()=>el.remove(),5200);
+  }
+
+  function connect(){
+    let ws;
+    try{ ws=new WebSocket('wss://irc-ws.chat.twitch.tv:443'); } catch(e){ return; }
+
+    ws.onopen=()=>{
+      ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
+      ws.send('NICK justinfan'+Math.floor(Math.random()*99999));
+      ws.send(`JOIN #${CHANNEL}`);
+    };
+
+    ws.onmessage=(e)=>{
+      const raw=e.data;
+      // Handle PING keep-alive
+      if(raw.startsWith('PING')){ ws.send('PONG :tmi.twitch.tv'); return; }
+      // Parse PRIVMSG
+      const match=raw.match(/:([^!]+)![^ ]+ PRIVMSG #\w+ :(.+)/);
+      if(match){
+        const user=match[1];
+        const msg=match[2].replace(/\r?\n/g,'').trim();
+        if(msg) spawnPop(user,msg);
+      }
+    };
+
+    ws.onclose=()=>{ setTimeout(connect,4000); }; // auto-reconnect
+    ws.onerror=()=>{ ws.close(); };
+  }
+
+  connect();
+})();
+</script>
+</body>
+</html>
