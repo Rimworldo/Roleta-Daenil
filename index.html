@@ -305,7 +305,7 @@ async function addToQueue(rawUrl, user, color) {
   queue.push({videoId:id, title, user, color: userColor, thumb});
   addPoints(user, 10);
   logChat(user, rawUrl, true, userColor || '#bf94ff');
-  playPing();
+  // playPing();
   toast(`✅ Adicionado`, 'ok');
   if (curIdx === -1) startPlayback(0); else renderQueue();
 }
