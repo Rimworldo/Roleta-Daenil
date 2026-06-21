@@ -1664,6 +1664,67 @@
     });
 }
 
+            function setupHost() {
+    if (!hostPeer) return;
+
+    hostPeer.on("connection", function (conn) {
+        conn.on("open", function () {
+            clientConnections.push(conn);
+            updateClientsBadge();
+
+            // Envia estado atual pro cliente novo
+            conn.send({
+                type: "sync",
+                queue: queue,
+                curIdx: curIdx,
+                time: 0,
+                paused: paused,
+                gifUrl: currentGifUrl
+            });
+        });
+
+        conn.on("data", function (data) {
+            if (data.type === "cmd") {
+                sendCmd(data.action, data);
+            }
+        });
+
+        conn.on("close", function () {
+            clientConnections = clientConnections.filter(c => c !== conn);
+            updateClientsBadge();
+        });
+    });
+}
+            
+            function setupClient() {
+    if (!clientPeer) return;
+
+    hostConnection = clientPeer.connect(ROOM_ID);
+
+    hostConnection.on("open", function () {
+        logChat("SISTEMA", "✅ Conectado ao Host via P2P", true, "#5de89a");
+    });
+
+    hostConnection.on("data", function (data) {
+        if (data.type === "sync") {
+            handleSync(data);
+        }
+        if (data.type === "syslog") {
+            logChat(data.user, data.text, true, data.color || "#ffdd57");
+        }
+    });
+
+    hostConnection.on("close", function () {
+        logChat("SISTEMA", "❌ Conexão com Host perdida. Tentando reconectar...", true, "#ff7070");
+        setTimeout(() => {
+            if (!isHost) startAsClient();
+        }, 3000);
+    });
+
+    hostConnection.on("error", function (err) {
+        console.error(err);
+    });
+}
             function startAsClient() {
                 if (p2pInitializing) return;
                 p2pInitializing = true;
@@ -2452,8 +2513,12 @@
                 if (seekTimeClient) seekTimeClient.textContent = f(cur) + "/" + (dur > 0 ? f(dur) : "--:--");
             }, 500);
 
-            function connectTwitch() {
-                logChat("SISTEMA", "🔗 Conectando ao Twitch chat...", true, "#ffdd57");
+                    function connectTwitch() {
+    if (twitchWs && (twitchWs.readyState === WebSocket.OPEN || twitchWs.readyState === WebSocket.CONNECTING)) {
+        return;
+    }
+
+    logChat("SISTEMA", "🔗 Conectando ao Twitch chat...", true, "#ffdd57");
     twitchWs = new WebSocket("wss://irc-ws.chat.twitch.tv:443");
 
                 twitchWs.onopen = function () {
