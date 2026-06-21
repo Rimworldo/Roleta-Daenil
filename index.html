@@ -1632,39 +1632,37 @@
                 }
             }
 
-            function startAsHost() {
-                if (p2pInitializing) return;
-                p2pInitializing = true;
-                isHost = true;
-                destroyPeers();
+           function startAsHost() {
+    if (p2pInitializing) return;
+    p2pInitializing = true;
+    isHost = true;
+    destroyPeers();
 
-                if (!twitchWs || twitchWs.readyState !== WebSocket.OPEN) {
-                    toast("Conectando ao Twitch chat...", "");
-                    logChat("SISTEMA", "🔗 Conectando ao Twitch chat como host...", true, "#ffdd57");
-                    connectTwitch();
-                } else {
-                    logChat("SISTEMA", "✅ Twitch chat já conectado.", true, "#5de89a");
-                }
+    // Força reconexão limpa do Twitch
+    if (twitchWs) {
+        try { twitchWs.close(); } catch(e){}
+        twitchWs = null;
+    }
 
-                hostPeer = new Peer(ROOM_ID, {
-                    debug: 0,
-                    config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] },
-                });
+    setTimeout(() => {
+        if (!twitchWs || twitchWs.readyState !== WebSocket.OPEN) {
+            connectTwitch();
+        }
+    }, 800);
 
-                hostPeer.on("open", function () {
-                    p2pInitializing = false;
-                    document.getElementById("roleBadge").textContent = `👑 HOST (${myName})`;
-                    document.getElementById("roleBadge").className = "role-badge role-host";
-                    document.getElementById("eoverText").innerHTML = `Host iniciado.<br>Aguardando vídeos!`;
-                    updateClientsBadge();
-                    setupHost();
-                });
+    hostPeer = new Peer(ROOM_ID, {
+        debug: 0,
+        config: { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] },
+    });
 
-                hostPeer.on("error", function (err) {
-                    p2pInitializing = false;
-                    toast("Erro ao iniciar Host. O ID está ocupado.", "err");
-                });
-            }
+    hostPeer.on("open", function () {
+        p2pInitializing = false;
+        document.getElementById("roleBadge").textContent = `👑 HOST (${myName})`;
+        document.getElementById("roleBadge").className = "role-badge role-host";
+        updateClientsBadge();
+        setupHost();
+    });
+}
 
             function startAsClient() {
                 if (p2pInitializing) return;
@@ -2456,7 +2454,7 @@
 
             function connectTwitch() {
                 logChat("SISTEMA", "🔗 Conectando ao Twitch chat...", true, "#ffdd57");
-                twitchWs = new WebSocket("wss://irc-ws.chat.twitch.tv:443");
+    twitchWs = new WebSocket("wss://irc-ws.chat.twitch.tv:443");
 
                 twitchWs.onopen = function () {
                     logChat("SISTEMA", "✅ WebSocket conectado. Enviando credenciais...", true, "#5de89a");
