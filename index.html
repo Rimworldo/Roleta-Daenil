@@ -2,1456 +2,1102 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>BUNKER-9 :: Protocolo de Extracao</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Os Jogos Famintos — Simulador Ultra Dinâmico</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --hud-red:#c23b3b;
-    --hud-amber:#d99a2b;
-    --hud-cyan:#2bb0d9;
-    --hud-green:#3fae5b;
-    --hud-bg:#0a0d0c;
-    --hud-panel: rgba(10,14,13,0.72);
-    --hud-line: rgba(210,220,215,0.18);
-    --font-display: 'Bahnschrift', 'Segoe UI Semibold', 'Arial Narrow', sans-serif;
-    --font-mono: 'Consolas', 'Courier New', monospace;
-  }
-  *{ box-sizing:border-box; }
-  html,body{
-    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
-    background:#000; font-family:var(--font-mono); color:#dfe6e2;
-    cursor:default;
-  }
-  #canvas-wrap{ position:fixed; inset:0; }
-  canvas{ display:block; width:100%; height:100%; }
+:root {
+  --bg: #0b0b0f; --sur: #13131a; --sur2: #1b1b26; --bdr: #262636;
+  --red: #d90429; --gold: #ffb703; --txt: #e2e8f0; --txt2: #94a3b8; --wht: #ffffff;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--txt); font-family: 'Montserrat', sans-serif; min-height: 100vh; font-size: 1.05rem; }
 
-  #crosshair{
-    position:fixed; left:50%; top:50%; width:22px; height:22px;
-    transform:translate(-50%,-50%); pointer-events:none; z-index:40;
-  }
-  #crosshair::before, #crosshair::after{
-    content:''; position:absolute; background:rgba(220,230,225,0.85);
-  }
-  #crosshair::before{ left:50%; top:2px; width:2px; height:7px; transform:translateX(-50%); }
-  #crosshair::after{ left:50%; bottom:2px; width:2px; height:7px; transform:translateX(-50%); }
-  #crosshair .ch-h1, #crosshair .ch-h2{
-    position:absolute; top:50%; width:7px; height:2px; background:rgba(220,230,225,0.85); transform:translateY(-50%);
-  }
-  #crosshair .ch-h1{ left:2px; }
-  #crosshair .ch-h2{ right:2px; }
-  #crosshair .ch-dot{
-    position:absolute; left:50%; top:50%; width:3px; height:3px; border-radius:50%;
-    background:var(--hud-red); transform:translate(-50%,-50%);
-  }
+/* HEADER */
+.hdr { border-bottom: 2px solid var(--bdr); padding: 40px 20px; text-align: center; background: linear-gradient(180deg, #161622, var(--bg)); }
+.hdr h1 { font-family: 'Cinzel', serif; font-size: 3.2rem; font-weight: 900; letter-spacing: .15em; color: var(--gold); text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+.hdr p { font-size: 1rem; letter-spacing: .3em; color: var(--txt2); text-transform: uppercase; margin-top: 10px; }
 
-  #hud{ position:fixed; inset:0; pointer-events:none; z-index:30; display:none; }
-  #hud.active{ display:block; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 40px 20px; }
+.sec-title { font-family: 'Cinzel', serif; font-size: 1.4rem; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); text-align: center; margin-bottom: 40px; }
 
-  .panel{
-    background:var(--hud-panel);
-    border:1px solid var(--hud-line);
-    backdrop-filter: blur(2px);
-  }
+/* REAPING */
+.dgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)); gap: 24px; }
+.dcard { background: var(--sur); border: 2px solid var(--bdr); border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.dhdr { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--bdr); padding-bottom: 12px; }
+.dlbl { font-family: 'Cinzel', serif; font-size: 1.2rem; font-weight: 700; color: var(--wht); }
+.clr-picker { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; color: var(--txt2); }
+.clr-picker input { border: none; background: none; width: 30px; height: 30px; cursor: pointer; }
+.trow { display: flex; gap: 16px; }
+.tcard { flex: 1; background: var(--sur2); border: 2px solid transparent; border-radius: 8px; padding: 16px; cursor: pointer; text-align: center; transition: all .2s; position: relative; }
+.tcard:hover { border-color: var(--gold); transform: translateY(-2px); }
 
-  #bottom-left{
-    position:fixed; left:18px; bottom:18px; width:300px; padding:10px 14px;
-  }
-  .stat-row{ display:flex; align-items:center; gap:8px; margin-bottom:7px; }
-  .stat-label{ font-size:11px; letter-spacing:2px; width:34px; color:#9fb0a9; font-family:var(--font-display); }
-  .bar-track{ flex:1; height:10px; background:rgba(255,255,255,0.06); position:relative; overflow:hidden; border:1px solid var(--hud-line); }
-  .bar-fill{ position:absolute; left:0; top:0; bottom:0; width:100%; transition:width 0.18s ease-out; }
-  #health-fill{ background:linear-gradient(90deg, #6e1f1f, var(--hud-red)); }
-  #stamina-fill{ background:linear-gradient(90deg, #1f4a2e, var(--hud-green)); }
-  .stat-num{ font-size:12px; width:34px; text-align:right; color:#e7ece9; }
-  
-  /* HUD Points */
-  #points-num { width:auto; flex:1; text-align:left; color:var(--hud-amber); font-weight:bold; letter-spacing:1px; }
-  .points-label { width:auto; margin-right:10px; }
+.tpw { width: 85px; height: 85px; margin: 0 auto 12px; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.tph, .tphd { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.tphd { background: var(--bg); display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-size: 2rem; color: var(--txt2); border: 2px solid var(--bdr); }
+.tnm { font-size: 1.1rem; font-weight: 600; color: var(--wht); margin-bottom: 12px; }
 
-  #bottom-right{
-    position:fixed; right:18px; bottom:18px; padding:10px 16px; text-align:right;
-  }
-  #weapon-name{ font-family:var(--font-display); font-size:15px; letter-spacing:2px; color:var(--hud-amber); }
-  #ammo-count{ font-size:30px; letter-spacing:1px; color:#eef2ef; line-height:1; margin-top:2px; }
-  #ammo-count span{ font-size:16px; color:#7f8f89; }
-  #reload-tag{ font-size:11px; color:var(--hud-red); letter-spacing:2px; margin-top:4px; visibility:hidden; }
-  #reload-tag.show{ visibility:visible; animation:blinker 0.5s linear infinite; }
-  @keyframes blinker{ 50%{ opacity:0.25; } }
+/* STATS BARS */
+.sbars { display: flex; flex-direction: column; gap: 6px; }
+.srow { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; }
+.slbl { width: 65px; text-transform: uppercase; color: var(--txt2); text-align: left; }
+.strk { flex: 1; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
+.sfil { height: 100%; border-radius: 3px; }
+.sfil.hp { background: #2ecc71; } .sfil.c { background: #e67e22; } .sfil.i { background: #3498db; } .sfil.s { background: #e74c3c; }
 
-  #top-center{
-    position:fixed; top:16px; left:50%; transform:translateX(-50%);
-    display:flex; gap:18px; padding:8px 22px; align-items:center;
-  }
-  #floor-tag{ font-family:var(--font-display); font-size:13px; letter-spacing:3px; color:#cdd8d3; }
-  #floor-tag b{ color:var(--hud-cyan); }
-  #obj-tag{ font-size:11px; color:#8fa39b; letter-spacing:1px; border-left:1px solid var(--hud-line); padding-left:16px; }
+/* HOVER TOOLTIP */
+.tcard:hover .thover-box, .ev-pcard:hover .thover-box { display: block !important; opacity: 1; }
+.thover-box { display: none; position: absolute; bottom: 105%; left: 50%; transform: translateX(-50%); background: #050508; border: 2px solid var(--gold); padding: 14px; border-radius: 8px; width: 260px; z-index: 999; text-align: left; box-shadow: 0 10px 20px rgba(0,0,0,0.8); pointer-events: none; }
+.thover-box p { font-size: 0.85rem; margin-bottom: 4px; color: var(--txt2); line-height: 1.4; }
+.thover-box strong { color: var(--wht); font-size: 0.95rem; }
+.thover-box .inv-lbl { border-top: 1px solid var(--bdr); margin-top: 6px; padding-top: 6px; color: var(--gold); font-weight: bold; }
+.thover-box .spec-lbl { color: #9d4edd; font-style: italic; }
 
-  #compass{
-    position:fixed; top:16px; right:18px; width:64px; height:64px; border-radius:50%;
-    display:flex; align-items:center; justify-content:center;
-  }
-  #compass-arrow{
-    width:0; height:0; border-left:8px solid transparent; border-right:8px solid transparent;
-    border-bottom:20px solid var(--hud-cyan); transform-origin:50% 60%;
-    filter:drop-shadow(0 0 4px rgba(43,176,217,0.7));
-    transition: transform 0.1s linear;
-  }
-  #compass-label{ position:absolute; bottom:4px; font-size:8px; letter-spacing:1px; color:#8fa39b; pointer-events: none;}
+/* MODAL EDIT */
+.mbg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.mbg.on { display: flex; }
+.modal { background: var(--sur); border: 2px solid var(--bdr); border-radius: 16px; padding: 32px; width: 420px; max-width: 90vw; }
+.mtitle { font-family: 'Cinzel', serif; font-size: 1.4rem; color: var(--gold); margin-bottom: 20px; text-align: center; }
+.modal label { display: block; font-size: 0.9rem; color: var(--txt2); text-transform: uppercase; margin: 14px 0 4px; }
+.modal input[type=text] { width: 100%; background: var(--bg); border: 2px solid var(--bdr); border-radius: 6px; color: var(--wht); font-size: 1.1rem; padding: 10px; outline: none; }
+.modal input[type=range] { width: 100%; accent-color: var(--gold); cursor: pointer; display: block; height: 10px; }
+.rval { float: right; color: var(--gold); font-weight: bold; }
+.parea { border: 2px dashed var(--bdr); border-radius: 8px; padding: 16px; text-align: center; cursor: pointer; margin-top: 8px; }
+.parea img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin: 0 auto 10px; display: block; }
+.mbtns { display: flex; gap: 12px; margin-top: 24px; }
+.btn { font-size: 1rem; font-weight: 600; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; flex: 1; text-transform: uppercase; }
+.btnp { background: var(--red); color: var(--wht); } .btnp:hover { background: #ff4d5a; }
+.btns { background: var(--bdr); color: var(--txt); }
 
-  #weapon-slots{
-    position:fixed; left:50%; bottom:18px; transform:translateX(-50%);
-    display:flex; gap:6px;
-  }
-  .slot{
-    width:40px; height:40px; padding:4px; display:flex; align-items:center; justify-content:center;
-    font-size:11px; color:#7f8f89; position:relative;
-  }
-  .slot.active{ border-color:var(--hud-amber); color:var(--hud-amber); }
-  .slot .slot-num{ position:absolute; top:2px; left:4px; font-size:9px; color:#5b6a64; }
+/* ARENA */
+#s-sim { display: none; }
+.simhdr h2 { font-family: 'Cinzel', serif; font-size: 2.4rem; color: var(--wht); text-align: center; margin-bottom: 12px; }
+.alivebar { text-align: center; font-size: 1.2rem; color: var(--txt2); margin-bottom: 40px; }
+.alivebar strong { color: var(--gold); }
 
-  #vignette{
-    position:fixed; inset:0; pointer-events:none; z-index:25;
-    box-shadow: inset 0 0 160px 40px rgba(0,0,0,0.55);
-  }
-  #dmg-flash{
-    position:fixed; inset:0; pointer-events:none; z-index:26; opacity:0;
-    background:radial-gradient(ellipse at center, rgba(180,20,20,0) 40%, rgba(150,10,10,0.55) 100%);
-    transition:opacity 0.1s ease-out;
-  }
-  #heal-flash{
-    position:fixed; inset:0; pointer-events:none; z-index:26; opacity:0;
-    background:radial-gradient(ellipse at center, rgba(30,180,90,0) 45%, rgba(20,140,70,0.35) 100%);
-    transition:opacity 0.2s ease-out;
-  }
+.dayblock { animation: fi 0.4s ease-out; }
+@keyframes fi { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: none; } }
+.dayhdr { display: flex; align-items: center; gap: 20px; margin: 40px 0 20px; }
+.daynum { font-family: 'Cinzel', serif; font-size: 1.6rem; font-weight: 900; color: var(--red); white-space: nowrap; }
+.daysep { flex: 1; height: 2px; background: var(--bdr); }
+.dayevtname { font-family: 'Cinzel', serif; font-size: 1.2rem; color: var(--gold); letter-spacing: 0.1em; }
 
-  .overlay{
-    position:fixed; inset:0; z-index:100; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; text-align:center;
-    background:radial-gradient(ellipse at center, rgba(16,21,18,0.95) 0%, rgba(5,7,6,0.95) 100%);
-    backdrop-filter: blur(4px);
-  }
-  .hidden{ display:none !important; }
+/* EVENTO DE DIA GLOBAL */
+.gevt { background: var(--sur); border-left: 4px solid var(--gold); border-radius: 0 8px 8px 0; padding: 20px; font-style: italic; color: var(--txt2); line-height: 1.6; margin-bottom: 30px; font-size: 1.2rem; position: relative; }
+.gevt .gstatus { position: absolute; right: 15px; top: 15px; background: rgba(255,183,3,0.15); color: var(--gold); font-size: 0.8rem; padding: 4px 8px; border-radius: 4px; font-weight: bold; text-transform: uppercase; }
 
-  #title-screen h1{
-    font-family:var(--font-display); font-size:min(9vw,72px); letter-spacing:10px;
-    color:#e9efeb; margin:0; text-shadow:0 0 24px rgba(43,176,217,0.35);
-  }
-  #title-screen .sub{ font-size:13px; letter-spacing:6px; color:var(--hud-amber); margin-top:8px; }
-  #title-screen .rule, #upgrade-screen .rule{ width:220px; height:1px; background:var(--hud-line); margin:26px 0; }
-  
-  .controls{
-    display:grid; grid-template-columns:repeat(2, auto); gap:8px 34px; font-size:12px; color:#9fb0a9;
-    letter-spacing:1px; text-align:left;
-  }
-  .controls b{ color:#dfe6e2; display:inline-block; width:64px; }
-  
-  .btn-style{
-    margin-top:20px; padding:14px 46px; background:transparent; border:1px solid var(--hud-cyan);
-    color:var(--hud-cyan); font-family:var(--font-display); letter-spacing:4px; font-size:14px;
-    cursor:pointer; transition:all 0.2s;
-  }
-  .btn-style:hover{ background:rgba(43,176,217,0.12); color:#fff; }
-  .btn-style:disabled{ border-color:#555; color:#555; cursor:not-allowed; background:transparent; }
+/* LISTA DE EVENTOS INDIVIDUAIS */
+.evitem { background: var(--sur); border: 2px solid var(--bdr); border-radius: 12px; padding: 24px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 16px; position: relative; }
+.evitem.eddeath { border-color: var(--red); background: linear-gradient(135deg, var(--sur), #251215); }
+.evitem.edbad { border-color: #5c3d1d; }
+.evitem.edcrisis { border-color: #7b2cbf; background: linear-gradient(135deg, var(--sur), #210036); }
+.evitem.edescape { border-color: #00b4d8; background: linear-gradient(135deg, var(--sur), #002030); }
 
-  #death-screen h1{ font-family:var(--font-display); font-size:52px; letter-spacing:8px; color:var(--hud-red); margin:0; }
-  #death-screen .sub{ font-size:13px; letter-spacing:3px; color:#9fb0a9; margin:14px 0 30px; }
-  #retry-btn{ border-color:var(--hud-red); color:var(--hud-red); }
-  #retry-btn:hover{ background:rgba(194,59,59,0.12); }
+.ev-pics { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; border-bottom: 1px solid var(--bdr); padding-bottom: 16px; }
+.ev-pcard { text-align: center; width: 100px; position: relative; cursor: help; }
+.ev-pw { width: 76px; height: 76px; margin: 0 auto 6px; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
+.ev-pcard img, .ev-pcard .tphd { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.ev-pcard .pname { font-size: 0.85rem; font-weight: 600; color: var(--wht); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.evtxt { line-height: 1.6; font-size: 1.25rem; text-align: center; padding: 0 10px; }
 
-  #floor-transition{
-    position:fixed; inset:0; z-index:90; display:flex; align-items:center; justify-content:center;
-    background:#050706; opacity:0; pointer-events:none; transition:opacity 0.5s ease;
-  }
-  #floor-transition.show{ opacity:1; }
-  #floor-transition h2{ font-family:var(--font-display); font-size:40px; letter-spacing:10px; color:var(--hud-cyan); }
-  #floor-transition p{ font-size:12px; letter-spacing:3px; color:#8fa39b; }
+/* PULSE CRISIS GLOW */
+.glow-crisis { box-shadow: 0 0 15px #9d4edd, 0 0 25px #7b2cbf; animation: pulseGlow 1.2s infinite alternate; }
+@keyframes pulseGlow { from { transform: scale(1); filter: brightness(1); } to { transform: scale(1); filter: brightness(1); } }
 
-  #pointer-hint{
-    position:fixed; inset:0; z-index:95; display:flex; align-items:center; justify-content:center;
-    background:rgba(5,7,6,0.72); font-family:var(--font-display); letter-spacing:3px; font-size:14px;
-    color:#dfe6e2; cursor:pointer;
-  }
+/* ESCAPE GLOW */
+.glow-escape { box-shadow: 0 0 15px #00b4d8, 0 0 25px #0077b6; }
 
-  /* Upgrade Screen specific */
-  #upgrade-screen h1 { font-family:var(--font-display); font-size:42px; letter-spacing:8px; color:var(--hud-amber); margin:0; }
-  #upgrade-screen .sub { font-size:16px; letter-spacing:4px; color:#e9efeb; margin-top:8px; }
-  .upg-buttons { display:flex; flex-direction:column; gap:12px; margin-top:10px; }
+/* STAT MAX FLASH */
+.glow-statmax { box-shadow: 0 0 20px #ffb703, 0 0 35px #fb8500; animation: maxGlow 0.8s ease-in-out 3; }
+@keyframes maxGlow { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.5); } }
+
+.v-status { color: var(--gold); font-weight: bold; background: rgba(255,183,3,0.15); padding: 2px 8px; border-radius: 4px; font-size: 1.05rem; display: inline-block; margin-left: 6px; }
+.v-status.escape-st { color: #00b4d8; background: rgba(0,180,216,0.15); }
+.v-status.crisis-st { color: #c77dff; background: rgba(157,78,221,0.15); }
+
+.startwrap, .nextwrap { text-align: center; margin-top: 40px; }
+.btnstart, .btnnext, .btnrestart { font-family: 'Cinzel', serif; font-size: 1.2rem; font-weight: 700; letter-spacing: 0.1em; padding: 18px 48px; border: none; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.btnstart { background: var(--red); color: var(--wht); } .btnstart:hover { background: #ff4d5a; transform: scale(1.05); }
+.btnnext { background: var(--sur); color: var(--gold); border: 2px solid var(--gold); } .btnnext:hover { background: var(--gold); color: var(--bg); }
+.btnrestart { background: transparent; color: var(--txt2); border: 2px solid var(--bdr); margin-top: 30px; } .btnrestart:hover { border-color: var(--gold); color: var(--gold); }
+
+/* MEMORIAM */
+.memoriam { background: #0f0f14; border: 2px dashed var(--red); border-radius: 12px; padding: 30px; margin: 40px 0; text-align: center; }
+.memgrid { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 20px; }
+.mementry { text-align: center; width: 90px; }
+.mementry .mphi-w { width: 68px; height: 68px; margin: 0 auto 6px; padding: 3px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.mementry img, .mementry .memphi { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.mementry .memphi { background: var(--bg); display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-size: 1.5rem; color: var(--txt2); border: 1px solid var(--bdr); }
+.memname { font-size: 0.9rem; color: var(--txt2); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+.memday { font-size: 0.75rem; color: var(--red); font-weight: bold; text-transform: uppercase; margin-top: 2px; }
+
+.dbar { background: rgba(230, 57, 70, 0.15); border: 2px solid var(--red); border-radius: 8px; padding: 16px; text-align: center; margin-top: 20px; font-size: 1.2rem; font-weight: 600; color: var(--wht); }
+.victorblock { text-align: center; background: var(--sur); border: 3px solid var(--gold); border-radius: 16px; padding: 60px 20px; }
+.victor-w { width: 148px; height: 148px; margin: 0 auto 20px; padding: 4px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.victorphoto, .victorphi { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.victorphi { background: var(--bg); display: flex; align-items: center; justify-content: center; font-family: 'Cinzel', serif; font-size: 4rem; color: var(--gold); border: 2px solid var(--bdr); }
+.victorname { font-family: 'Cinzel', serif; font-size: 2.8rem; color: var(--gold); font-weight: 900; }
+.victordist { font-size: 1.2rem; color: var(--txt2); margin-top: 8px; text-transform: uppercase; letter-spacing: 0.1em; }
+.victorquote { font-style: italic; color: var(--txt2); margin-top: 24px; font-size: 1.3rem; line-height: 1.6; }
+
+/* ESCAPED TRIBUTES */
+.escapedblock { background: #050f14; border: 2px solid #00b4d8; border-radius: 12px; padding: 24px; margin: 20px 0; text-align: center; }
+.escapedblock h3 { font-family: 'Cinzel', serif; color: #00b4d8; margin-bottom: 12px; font-size: 1.2rem; }
+
+@media(max-width: 768px) { .dgrid { grid-template-columns: 1fr; } .trow { flex-direction: column; } }
 </style>
 </head>
 <body>
 
-<div id="canvas-wrap"></div>
+<header class="hdr">
+  <h1>Os Jogos Famintos</h1>
+  <p>Simulador Oficial — Edição Brasileira</p>
+</header>
 
-<div id="crosshair">
-  <span class="ch-h1"></span><span class="ch-h2"></span><span class="ch-dot"></span>
-</div>
-
-<div id="hud">
-  <div id="bottom-left" class="panel">
-    <div class="stat-row">
-      <span class="stat-label">VIDA</span>
-      <div class="bar-track"><div id="health-fill" class="bar-fill"></div></div>
-      <span class="stat-num" id="health-num">100</span>
-    </div>
-    <div class="stat-row">
-      <span class="stat-label">FOLEGO</span>
-      <div class="bar-track"><div id="stamina-fill" class="bar-fill"></div></div>
-      <span class="stat-num" id="stamina-num">100</span>
-    </div>
-    <div class="stat-row" style="margin-top:12px;">
-      <span class="stat-label points-label">PONTOS:</span>
-      <span class="stat-num" id="points-num">0</span>
+<div id="s-reaping">
+  <div class="wrap">
+    <p class="sec-title">Tributos & Atributos Iniciais (Escala 1-100)</p>
+    <div class="dgrid" id="dgrid"></div>
+    <div class="startwrap">
+      <button class="btnstart" id="btnstart">Iniciar os Jogos</button>
     </div>
   </div>
+</div>
 
-  <div id="bottom-right" class="panel">
-    <div id="weapon-name">PISTOLA M9</div>
-    <div id="ammo-count">12<span> / 84</span></div>
-    <div id="reload-tag">RECARREGANDO</div>
-  </div>
-
-  <div id="top-center" class="panel">
-    <div id="floor-tag">ANDAR <b id="floor-num">1</b></div>
-    <div id="obj-tag">LOCALIZE O PORTAL DE SAIDA</div>
-  </div>
-
-  <div id="compass" class="panel">
-    <div id="compass-arrow"></div>
-    <div id="compass-label">SAIDA</div>
-  </div>
-
-  <div id="weapon-slots">
-    <div class="slot panel" data-slot="0"><span class="slot-num">1</span>PST</div>
-    <div class="slot panel" data-slot="1"><span class="slot-num">2</span>SHT</div>
-    <div class="slot panel" data-slot="2"><span class="slot-num">3</span>SMG</div>
-    <div class="slot panel" data-slot="3"><span class="slot-num">4</span>SNP</div>
+<div id="s-sim">
+  <div class="wrap">
+    <div class="simhdr">
+      <h2>A Arena Histórica</h2>
+    </div>
+    <p class="alivebar" id="alivebar"></p>
+    <div id="simcontent"></div>
   </div>
 </div>
 
-<div id="vignette"></div>
-<div id="dmg-flash"></div>
-<div id="heal-flash"></div>
-
-<div id="floor-transition"><div><h2 id="floor-transition-title">ANDAR 2</h2><p>NIVEL DE AMEACA EM ELEVACAO</p></div></div>
-
-<div id="title-screen" class="overlay">
-  <h1>BUNKER-9</h1>
-  <div class="sub">PROTOCOLO DE EXTRACAO</div>
-  <div class="rule"></div>
-  <div class="controls">
-    <div><b>WASD</b>Mover</div>
-    <div><b>MOUSE</b>Olhar</div>
-    <div><b>SHIFT</b>Correr</div>
-    <div><b>CLIQUE</b>Atirar</div>
-    <div><b>R</b>Recarregar</div>
-    <div><b>1-4</b>Trocar arma</div>
-    <div><b>E</b>Menu Upgrades</div>
-  </div>
-  <button id="start-btn" class="btn-style">INICIAR OPERACAO</button>
-</div>
-
-<!-- TELA DE UPGRADE -->
-<div id="upgrade-screen" class="overlay hidden">
-  <h1>TERMINAL UPGRADE</h1>
-  <div class="sub">PONTOS DISPONIVEIS: <span id="upg-pts-display" style="color:var(--hud-amber);">0</span></div>
-  <div class="rule"></div>
-  <div class="upg-buttons">
-    <button class="btn-style" id="btn-upg-hp">VIDA MAXIMA +25 (CUSTO: <span id="cost-hp">5</span>)</button>
-    <button class="btn-style" id="btn-upg-dmg">DANO +15% (CUSTO: <span id="cost-dmg">5</span>)</button>
-    <button class="btn-style" id="btn-upg-close" style="border-color:var(--hud-red); color:var(--hud-red);">FECHAR TERMINAL (E)</button>
-  </div>
-</div>
-
-<div id="pointer-hint" class="hidden">CLIQUE PARA RETOMAR O CONTROLE</div>
-
-<div id="death-screen" class="overlay hidden">
-  <h1>VOCE CAIU</h1>
-  <div class="sub" id="death-stats">ANDAR ALCANCADO: 1</div>
-  <button id="retry-btn" class="btn-style">REINICIAR OPERACAO</button>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script>
-(function(){
-"use strict";
-
-/* =========================================================================
-   BUNKER-9 - motor de jogo FPS proceduralmente gerado
-   ========================================================================= */
-
-/* ----------------------------- constantes ----------------------------- */
-var SECTOR_SIZE = 16;
-var WALL_THICK = 1.0;
-var WALL_HEIGHT = 4.2;
-var DOOR_WIDTH = 4.2;
-var GEN_RADIUS = 2;
-var KEEP_RADIUS = 3;
-var PLAYER_RADIUS = 0.38;
-var PLAYER_HEIGHT = 1.7;
-var GRAVITY_EYE_BOB_SPEED = 10.5;
-
-/* ------------------------------- estado -------------------------------- */
-var scene, camera, renderer, clock;
-var raycaster = new THREE.Raycaster();
-var gameState = "menu"; // "menu", "playing", "dead", "transition", "upgrade"
-var keys = {};
-var yaw = 0, pitch = 0;
-var mouseLocked = false;
-
-var playerPoints = 0;
-var dmgMultiplier = 1.0;
-var upgradeCosts = { hp: 5, dmg: 5 };
-
-var player = {
-  pos: new THREE.Vector3(0, PLAYER_HEIGHT, 0),
-  vel: new THREE.Vector3(),
-  health: 100, maxHealth: 100,
-  stamina: 100, maxStamina: 100,
-  sprinting: false,
-  bobPhase: 0,
-  alive: true
-};
-
-var sectors = new Map();
-var enemies = [];
-var pickups = [];
-var pointDrops = []; // Cubos amarelos de pontuação
-var ceilingLights = []; // Luzes brancas do teto
-var tracers = [];
-var particles = [];
-
-var floorNumber = 1;
-var floorSeedSalt = 1;
-var exitPortal = null;
-var lastSectorCheck = 0;
-
-// --- Sistema de áudio ---
-var audioCtx = null;
-
-function initAudio() {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  }
-}
-
-function createOscillatorSound(freq, duration, volume, type) {
-  try {
-    var osc = audioCtx.createOscillator();
-    var gain = audioCtx.createGain();
-    osc.type = type || 'sawtooth';
-    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-    gain.gain.setValueAtTime(volume || 0.15, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    osc.start();
-    osc.stop(audioCtx.currentTime + duration);
-  } catch(e) {}
-}
-
-function playGunshot(weaponIdx) {
-  initAudio();
-  var defs = [
-    { freq: 380, dur: 0.12, vol: 0.25, type: 'sawtooth' },
-    { freq: 160, dur: 0.20, vol: 0.30, type: 'sawtooth' },
-    { freq: 450, dur: 0.08, vol: 0.18, type: 'square' },
-    { freq: 280, dur: 0.25, vol: 0.22, type: 'sawtooth' }
-  ];
-  var d = defs[weaponIdx] || defs[0];
-  createOscillatorSound(d.freq, d.dur, d.vol, d.type);
-  setTimeout(function() { createOscillatorSound(d.freq * 0.6, d.dur * 0.5, d.vol * 0.3, 'square'); }, d.dur * 1000 * 0.3);
-}
-
-function playEnemyShot() { initAudio(); createOscillatorSound(220, 0.08, 0.08, 'square'); }
-function playReloadSound() {
-  initAudio();
-  for (var i=0; i<3; i++) { setTimeout(function() { createOscillatorSound(180 + Math.random()*80, 0.04, 0.05, 'square'); }, i * 120); }
-  setTimeout(function() { createOscillatorSound(300, 0.08, 0.07, 'sawtooth'); }, 360);
-}
-function playDamageSound() { initAudio(); createOscillatorSound(90, 0.15, 0.12, 'sawtooth'); }
-function playHealSound() {
-  initAudio();
-  createOscillatorSound(550, 0.12, 0.08, 'sine');
-  setTimeout(function() { createOscillatorSound(700, 0.10, 0.06, 'sine'); }, 100);
-}
-function playCoinSound() {
-  initAudio();
-  createOscillatorSound(800, 0.05, 0.06, 'square');
-  setTimeout(function() { createOscillatorSound(1200, 0.1, 0.06, 'sine'); }, 50);
-}
-function playUpgradeSound() {
-  initAudio();
-  createOscillatorSound(400, 0.1, 0.1, 'square');
-  setTimeout(function() { createOscillatorSound(600, 0.2, 0.1, 'sine'); }, 100);
-  setTimeout(function() { createOscillatorSound(800, 0.3, 0.1, 'sine'); }, 200);
-}
-function playFootstep() { initAudio(); createOscillatorSound(70 + Math.random()*30, 0.03, 0.02, 'square'); }
-function playPortalSound() {
-  initAudio();
-  for (var i=0; i<5; i++) { setTimeout(function() { createOscillatorSound(300 + Math.random()*400, 0.08, 0.04, 'sine'); }, i * 70); }
-}
-
-var footstepTimer = 0;
-
-/* ------------------------------ utilidades ------------------------------ */
-function seededRandom(x, z, salt){
-  var seed = (x * 374761393 + z * 668265263 + salt * 2246822519 + floorSeedSalt * 3266489917) >>> 0;
-  seed = (seed ^ (seed >>> 13)) >>> 0;
-  seed = Math.imul(seed, 1274126177) >>> 0;
-  seed = (seed ^ (seed >>> 16)) >>> 0;
-  return (seed % 100000) / 100000;
-}
-function sectorKey(sx, sz){ return sx + "," + sz; }
-function worldToSector(x, z){
-  return { sx: Math.floor((x + SECTOR_SIZE/2) / SECTOR_SIZE), sz: Math.floor((z + SECTOR_SIZE/2) / SECTOR_SIZE) };
-}
-function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
-function lerp(a, b, t){ return a + (b - a) * t; }
-
-/* ------------------------------- setup ---------------------------------- */
-function init(){
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x05070a);
-  scene.fog = new THREE.Fog(0x05070a, 8, 46);
-
-  camera = new THREE.PerspectiveCamera(80, window.innerWidth/window.innerHeight, 0.08, 200);
-
-  renderer = new THREE.WebGLRenderer({ antialias:true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.shadowMap.enabled = false;
-  document.getElementById("canvas-wrap").appendChild(renderer.domElement);
-
-  var hemi = new THREE.HemisphereLight(0x445566, 0x0a0a0c, 0.55);
-  scene.add(hemi);
-  var flashLight = new THREE.PointLight(0xbcd8ff, 0.9, 12, 2);
-  flashLight.position.set(0,0,0);
-  camera.add(flashLight);
-  scene.add(camera);
-
-  muzzleFlashLight = new THREE.PointLight(0xffb060, 0, 8, 2);
-  camera.add(muzzleFlashLight);
-
-  buildGunModels();
-
-  clock = new THREE.Clock();
-
-  window.addEventListener("resize", onResize);
-  document.addEventListener("keydown", function(e){ keys[e.code] = true; onKeyDown(e); });
-  document.addEventListener("keyup", function(e){ keys[e.code] = false; });
-  document.addEventListener("mousedown", onMouseDown);
-  document.addEventListener("mouseup", function(e){ if (e.button===0) mouseHeld=false; });
-  document.addEventListener("mousemove", onMouseMove);
-  document.addEventListener("pointerlockchange", onPointerLockChange);
-
-  document.getElementById("start-btn").addEventListener("click", startGame);
-  document.getElementById("retry-btn").addEventListener("click", startGame);
-  document.getElementById("pointer-hint").addEventListener("click", function(){
-    if(gameState === "playing") renderer.domElement.requestPointerLock();
-  });
-  
-  // Upgrades listeners
-  document.getElementById("btn-upg-hp").addEventListener("click", function(){ purchaseUpgrade("hp"); });
-  document.getElementById("btn-upg-dmg").addEventListener("click", function(){ purchaseUpgrade("dmg"); });
-  document.getElementById("btn-upg-close").addEventListener("click", toggleUpgradeMenu);
-
-  requestAnimationFrame(loop);
-}
-
-function onResize(){
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}
-
-/* --------------------------- modelos de arma ----------------------------- */
-function buildGunModels(){
-  gunGroup = new THREE.Group();
-  gunGroup.position.set(0.32, -0.32, -0.55);
-  camera.add(gunGroup);
-
-  weaponDefs.forEach(function(def, idx){
-    var m = new THREE.Group();
-    var bodyMat = new THREE.MeshStandardMaterial({ color: def.color, roughness:0.6, metalness:0.4 });
-    var darkMat = new THREE.MeshStandardMaterial({ color: 0x14171a, roughness:0.7, metalness:0.3 });
-
-    if (idx === 0){
-      var body = new THREE.Mesh(new THREE.BoxGeometry(0.09,0.11,0.30), bodyMat); m.add(body);
-      var barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,0.16,8), darkMat);
-      barrel.rotation.x = Math.PI/2; barrel.position.set(0,0.02,-0.22); m.add(barrel);
-      var grip = new THREE.Mesh(new THREE.BoxGeometry(0.08,0.16,0.09), darkMat); grip.position.set(0,-0.13,0.09); grip.rotation.x = 0.25; m.add(grip);
-    } else if (idx === 1){
-      var body = new THREE.Mesh(new THREE.BoxGeometry(0.11,0.12,0.5), bodyMat); m.add(body);
-      var barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.028,0.42,8), darkMat);
-      barrel.rotation.x = Math.PI/2; barrel.position.set(0,0.02,-0.36); m.add(barrel);
-      var pump = new THREE.Mesh(new THREE.BoxGeometry(0.09,0.08,0.16), darkMat); pump.position.set(0,-0.02,-0.22); m.add(pump);
-      var stock = new THREE.Mesh(new THREE.BoxGeometry(0.08,0.14,0.2), darkMat); stock.position.set(0,-0.08,0.28); m.add(stock);
-    } else if (idx === 2){
-      var body = new THREE.Mesh(new THREE.BoxGeometry(0.10,0.13,0.38), bodyMat); m.add(body);
-      var barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.022,0.022,0.22,8), darkMat);
-      barrel.rotation.x = Math.PI/2; barrel.position.set(0,0.02,-0.30); m.add(barrel);
-      var mag = new THREE.Mesh(new THREE.BoxGeometry(0.05,0.20,0.07), darkMat); mag.position.set(0,-0.16,0.02); mag.rotation.x = -0.15; m.add(mag);
-      var stockS = new THREE.Mesh(new THREE.BoxGeometry(0.06,0.1,0.16), darkMat); stockS.position.set(0,-0.02,0.28); m.add(stockS);
-    } else {
-      var body = new THREE.Mesh(new THREE.BoxGeometry(0.10,0.11,0.62), bodyMat); m.add(body);
-      var barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.024,0.024,0.4,8), darkMat);
-      barrel.rotation.x = Math.PI/2; barrel.position.set(0,0.01,-0.5); m.add(barrel);
-      var scope = new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.028,0.26,10), new THREE.MeshStandardMaterial({color:0x0c0c0c}));
-      scope.rotation.x = Math.PI/2; scope.position.set(0,0.09,-0.05); m.add(scope);
-      var stockL = new THREE.Mesh(new THREE.BoxGeometry(0.08,0.13,0.26), darkMat); stockL.position.set(0,-0.04,0.36); m.add(stockL);
-    }
-    m.visible = (idx === currentWeaponIdx);
-    gunGroup.add(m);
-    gunModels.push(m);
-    ammoState.push({ clip: def.clip, reserve: def.reserveMax });
-  });
-}
-
-function switchWeapon(idx){
-  if (idx === currentWeaponIdx || reloading) return;
-  if (idx < 0 || idx >= weaponDefs.length) return;
-  gunModels[currentWeaponIdx].visible = false;
-  currentWeaponIdx = idx;
-  gunModels[currentWeaponIdx].visible = true;
-  reloading = false;
-  updateHudWeapon();
-}
-
-/* -------------------------- geracao de setores --------------------------- */
-function wallMaterial(){
-  return new THREE.MeshStandardMaterial({ color:0x2a3138, roughness:0.85, metalness:0.15 });
-}
-function floorMaterialFor(sx, sz){
-  var tint = 0.85 + seededRandom(sx,sz,11) * 0.3;
-  var base = new THREE.Color(0x22282c).multiplyScalar(tint);
-  return new THREE.MeshStandardMaterial({ color: base, roughness:0.95, metalness:0.05 });
-}
-
-function addWallBox(group, wallsArr, cx, cy, cz, sx_len, sy_len, sz_len, mat){
-  var geo = new THREE.BoxGeometry(sx_len, sy_len, sz_len);
-  var mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(cx, cy, cz);
-  group.add(mesh);
-  wallsArr.push({
-    minX: cx - sx_len/2, maxX: cx + sx_len/2,
-    minZ: cz - sz_len/2, maxZ: cz + sz_len/2,
-    mesh: mesh
-  });
-  return mesh;
-}
-
-function generateSector(sx, sz){
-  var key = sectorKey(sx, sz);
-  if (sectors.has(key)) return sectors.get(key);
-
-  var group = new THREE.Group();
-  var cx = sx * SECTOR_SIZE, cz = sz * SECTOR_SIZE;
-  group.position.set(cx, 0, cz);
-
-  var walls = [];
-  var half = SECTOR_SIZE/2;
-  var wMat = wallMaterial();
-
-  var floorGeo = new THREE.PlaneGeometry(SECTOR_SIZE, SECTOR_SIZE);
-  var floorMesh = new THREE.Mesh(floorGeo, floorMaterialFor(sx,sz));
-  floorMesh.rotation.x = -Math.PI/2; floorMesh.position.y = 0; group.add(floorMesh);
-
-  var ceilMesh = new THREE.Mesh(floorGeo, new THREE.MeshStandardMaterial({color:0x111417, roughness:1}));
-  ceilMesh.rotation.x = Math.PI/2; ceilMesh.position.y = WALL_HEIGHT; group.add(ceilMesh);
-
-  var segLen = (SECTOR_SIZE - DOOR_WIDTH)/2;
-  [-half, half].forEach(function(zEdge){
-    addWallBox(group, walls, -(DOOR_WIDTH/2 + segLen/2), WALL_HEIGHT/2, zEdge, segLen, WALL_HEIGHT, WALL_THICK, wMat);
-    addWallBox(group, walls, (DOOR_WIDTH/2 + segLen/2), WALL_HEIGHT/2, zEdge, segLen, WALL_HEIGHT, WALL_THICK, wMat);
-  });
-  [-half, half].forEach(function(xEdge){
-    addWallBox(group, walls, xEdge, WALL_HEIGHT/2, -(DOOR_WIDTH/2 + segLen/2), WALL_THICK, WALL_HEIGHT, segLen, wMat);
-    addWallBox(group, walls, xEdge, WALL_HEIGHT/2, (DOOR_WIDTH/2 + segLen/2), WALL_THICK, WALL_HEIGHT, segLen, wMat);
-  });
-
-  var pillarChance = seededRandom(sx, sz, 21);
-  var pillarCount = pillarChance > 0.6 ? (pillarChance > 0.85 ? 2 : 1) : 0;
-  for (var p=0; p<pillarCount; p++){
-    var rx = (seededRandom(sx,sz,30+p) - 0.5) * (SECTOR_SIZE - 5);
-    var rz = (seededRandom(sx,sz,40+p) - 0.5) * (SECTOR_SIZE - 5);
-    if (Math.abs(rx) < 2.6 && Math.abs(rz) < 2.6) continue;
-    addWallBox(group, walls, rx, WALL_HEIGHT/2, rz, 1.1, WALL_HEIGHT, 1.1, wMat);
-  }
-
-  // Luzes no teto (Cubos Azuis + Ponto de luz)
-  var lampMat = new THREE.MeshStandardMaterial({ color:0x88ccff, emissive:0x2255aa, emissiveIntensity:1.2 });
-  var lamp = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.15,0.5), lampMat);
-  lamp.position.set(0, WALL_HEIGHT - 0.15, 0);
-  group.add(lamp);
-  
-  var wLight = new THREE.PointLight(0xffffff, 0, 16, 2);
-  wLight.position.set(0, WALL_HEIGHT - 0.4, 0);
-  group.add(wLight);
-  ceilingLights.push({ light: wLight, x: cx, z: cz, sectorKey: key });
-
-  scene.add(group);
-
-  var sector = {
-    sx:sx, sz:sz, group:group, walls:walls,
-    enemyIds:[], pickupIds:[], pointDropsIds:[], hasPortal:false
-  };
-  sectors.set(key, sector);
-
-  var isOrigin = (sx===0 && sz===0);
-
-  var healChance = seededRandom(sx,sz,51);
-  if (!isOrigin && healChance > 0.72){ spawnPickup(sector, cx, cz); }
-
-  if (exitPortal && exitPortal.sx === sx && exitPortal.sz === sz){ spawnPortal(sector, cx, cz); }
-
-  if (!isOrigin){
-    var dist = Math.max(Math.abs(sx), Math.abs(sz));
-    var spawnRoll = seededRandom(sx,sz,61);
-    var densityTarget = clamp(0.28 + floorNumber*0.045, 0.28, 0.62);
-    if (dist >= 1 && spawnRoll < densityTarget){
-      var howMany = 1 + (seededRandom(sx,sz,62) < (0.15 + floorNumber*0.02) ? 1 : 0);
-      for (var i=0;i<howMany;i++){
-        var ex = cx + (seededRandom(sx,sz,70+i)-0.5) * (SECTOR_SIZE - 4);
-        var ez = cz + (seededRandom(sx,sz,80+i)-0.5) * (SECTOR_SIZE - 4);
-        spawnEnemy(sector, ex, ez, pickEnemyType(seededRandom(sx,sz,90+i)));
-      }
-    }
-  }
-
-  return sector;
-}
-
-function pickEnemyType(roll){
-  var f = floorNumber;
-  var weights = {
-    grunt:  Math.max(0.15, 0.55 - f*0.02),
-    rusher: 0.20 + Math.min(f*0.015, 0.15),
-    sniper: 0.12 + Math.min(f*0.015, 0.18),
-    tank:   Math.max(0, (f-2)*0.03)
-  };
-  var total = weights.grunt + weights.rusher + weights.sniper + weights.tank;
-  var r = roll * total;
-  if ((r -= weights.grunt) < 0) return "grunt";
-  if ((r -= weights.rusher) < 0) return "rusher";
-  if ((r -= weights.sniper) < 0) return "sniper";
-  return "tank";
-}
-
-function disposeSector(key){
-  var sector = sectors.get(key);
-  if (!sector) return;
-  sector.group.traverse(function(obj){
-    if (obj.geometry) obj.geometry.dispose();
-    if (obj.material){
-      if (Array.isArray(obj.material)) obj.material.forEach(function(mm){mm.dispose();});
-      else obj.material.dispose();
-    }
-  });
-  scene.remove(sector.group);
-
-  sector.enemyIds.forEach(function(id){
-    var idxE = enemies.findIndex(function(e){ return e.id===id; });
-    if (idxE >= 0){ removeEnemyMesh(enemies[idxE]); enemies.splice(idxE,1); }
-  });
-  sector.pickupIds.forEach(function(id){
-    var idxP = pickups.findIndex(function(p){ return p.id===id; });
-    if (idxP >= 0){ scene.remove(pickups[idxP].mesh); pickups.splice(idxP,1); }
-  });
-  sector.pointDropsIds.forEach(function(id){
-    var idxPD = pointDrops.findIndex(function(p){ return p.id===id; });
-    if (idxPD >= 0){ scene.remove(pointDrops[idxPD].mesh); pointDrops.splice(idxPD,1); }
-  });
-  
-  ceilingLights = ceilingLights.filter(function(l) { return l.sectorKey !== key; });
-
-  sectors.delete(key);
-}
-
-function updateStreaming(){
-  var s = worldToSector(player.pos.x, player.pos.z);
-  for (var dx=-GEN_RADIUS; dx<=GEN_RADIUS; dx++){
-    for (var dz=-GEN_RADIUS; dz<=GEN_RADIUS; dz++){
-      generateSector(s.sx+dx, s.sz+dz);
-    }
-  }
-  var toRemove = [];
-  sectors.forEach(function(sector, key){
-    var d = Math.max(Math.abs(sector.sx - s.sx), Math.abs(sector.sz - s.sz));
-    if (d > KEEP_RADIUS) toRemove.push(key);
-  });
-  toRemove.forEach(disposeSector);
-}
-
-function nearbyWalls(){
-  var s = worldToSector(player.pos.x, player.pos.z);
-  var list = [];
-  for (var dx=-1; dx<=1; dx++){
-    for (var dz=-1; dz<=1; dz++){
-      var sector = sectors.get(sectorKey(s.sx+dx, s.sz+dz));
-      if (sector) list = list.concat(sector.walls);
-    }
-  }
-  return list;
-}
-function nearbyWallMeshes(range){
-  var s = worldToSector(player.pos.x, player.pos.z);
-  var list = [];
-  for (var dx=-range; dx<=range; dx++){
-    for (var dz=-range; dz<=range; dz++){
-      var sector = sectors.get(sectorKey(s.sx+dx, s.sz+dz));
-      if (sector) sector.walls.forEach(function(w){ list.push(w.mesh); });
-    }
-  }
-  return list;
-}
-
-/* ------------------------------- pickups e pontos --------------------------------- */
-var pickupIdCounter = 0;
-function spawnPickup(sector, cx, cz){
-  var group = new THREE.Group();
-  var mat = new THREE.MeshStandardMaterial({ color:0x2ee06a, emissive:0x0d8a3a, emissiveIntensity:0.8 });
-  var barV = new THREE.Mesh(new THREE.BoxGeometry(0.14,0.5,0.14), mat);
-  var barH = new THREE.Mesh(new THREE.BoxGeometry(0.5,0.14,0.14), mat);
-  group.add(barV); group.add(barH);
-  var px = cx + (seededRandom(sector.sx,sector.sz,101)-0.5) * (SECTOR_SIZE-6);
-  var pz = cz + (seededRandom(sector.sx,sector.sz,102)-0.5) * (SECTOR_SIZE-6);
-  group.position.set(px, 1.0, pz);
-  scene.add(group);
-  var id = ++pickupIdCounter;
-  pickups.push({ id:id, mesh:group, healAmount:35, sectorKey: sectorKey(sector.sx,sector.sz), baseY:1.0, phase:Math.random()*10 });
-  sector.pickupIds.push(id);
-}
-
-var pointDropCounter = 0;
-function spawnPointCube(pos, sectorKeyStr){
-  var sectorInfo = sectors.get(sectorKeyStr);
-  if(!sectorInfo) return;
-  var group = new THREE.Group();
-  var mat = new THREE.MeshStandardMaterial({ color:0xffd700, emissive:0xaa8800, emissiveIntensity:0.6 });
-  var cube = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), mat);
-  group.add(cube);
-  var light = new THREE.PointLight(0xffd700, 1.5, 4);
-  group.add(light);
-  group.position.copy(pos);
-  group.position.y = 0.5;
-  scene.add(group);
-  var id = ++pointDropCounter;
-  pointDrops.push({ id:id, mesh:group, sectorKey: sectorKeyStr, baseY:0.5, phase:Math.random()*10 });
-  sectorInfo.pointDropsIds.push(id);
-}
-
-/* -------------------------------- portal ---------------------------------- */
-function chooseExitPortalLocation(){
-  var minDist = 5 + Math.min(floorNumber, 8);
-  var angle = seededRandom(floorNumber, 0, 999) * Math.PI * 2;
-  var sx = Math.round(Math.cos(angle) * minDist);
-  var sz = Math.round(Math.sin(angle) * minDist);
-  if (sx===0 && sz===0) sx = minDist;
-  exitPortal = { sx:sx, sz:sz, mesh:null };
-}
-function spawnPortal(sector, cx, cz){
-  var group = new THREE.Group();
-  var ringMat = new THREE.MeshStandardMaterial({ color:0x2bb0d9, emissive:0x1c7fa0, emissiveIntensity:1.4, side:THREE.DoubleSide });
-  var ring1 = new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.09, 10, 24), ringMat);
-  var ring2 = new THREE.Mesh(new THREE.TorusGeometry(1.0, 0.06, 10, 24), ringMat);
-  ring1.position.y = 1.6; ring2.position.y = 1.6;
-  group.add(ring1); group.add(ring2);
-  var coreMat = new THREE.MeshBasicMaterial({ color:0x9fe4ff, transparent:true, opacity:0.35 });
-  var core = new THREE.Mesh(new THREE.CircleGeometry(1.0, 20), coreMat);
-  core.position.y = 1.6;
-  group.add(core);
-  var light = new THREE.PointLight(0x2bb0d9, 1.4, 10, 2);
-  light.position.y = 1.6;
-  group.add(light);
-  group.position.set(cx, 0, cz);
-  scene.add(group);
-  sector.hasPortal = true;
-  exitPortal.mesh = group;
-  exitPortal.ring1 = ring1;
-  exitPortal.ring2 = ring2;
-  exitPortal.worldPos = new THREE.Vector3(cx, 1.6, cz);
-}
-
-/* ------------------------------- inimigos ---------------------------------- */
-var enemyIdCounter = 0;
-function createEnemyMesh(typeDef){
-  var group = new THREE.Group();
-  var scale = typeDef.scale;
-  var bodyMat = new THREE.MeshStandardMaterial({ color: typeDef.color, roughness:0.7, metalness:0.2 });
-  var jointMat = new THREE.MeshStandardMaterial({ color: 0x1c1f22, roughness:0.8 });
-
-  var torso = new THREE.Mesh(new THREE.BoxGeometry(0.5*scale,0.7*scale,0.3*scale), bodyMat); torso.position.y = 1.05*scale; group.add(torso);
-  var head = new THREE.Mesh(new THREE.BoxGeometry(0.32*scale,0.32*scale,0.32*scale), bodyMat); head.position.y = 1.58*scale; group.add(head);
-  var eyeMat = new THREE.MeshBasicMaterial({ color:0xff3b3b });
-  var eye = new THREE.Mesh(new THREE.BoxGeometry(0.22*scale,0.06*scale,0.02*scale), eyeMat); eye.position.set(0, 1.58*scale, 0.17*scale); group.add(eye);
-
-  var armGeo = new THREE.BoxGeometry(0.14*scale,0.55*scale,0.14*scale);
-  var leftArm = new THREE.Mesh(armGeo, jointMat); leftArm.position.set(-0.34*scale, 1.05*scale, 0); leftArm.geometry.translate(0,-0.27*scale,0); leftArm.position.y = 1.32*scale; group.add(leftArm);
-  var rightArm = new THREE.Mesh(armGeo.clone(), jointMat); rightArm.position.set(0.34*scale, 1.32*scale, 0); group.add(rightArm);
-  var gunMesh = new THREE.Mesh(new THREE.BoxGeometry(0.09*scale,0.09*scale,0.42*scale), new THREE.MeshStandardMaterial({color:0x111214})); gunMesh.position.set(0.34*scale, 1.05*scale, 0.25*scale); group.add(gunMesh);
-
-  var legGeo = new THREE.BoxGeometry(0.16*scale,0.6*scale,0.16*scale);
-  var leftLeg = new THREE.Mesh(legGeo, jointMat); leftLeg.position.set(-0.14*scale, 0.35*scale, 0);
-  var rightLeg = new THREE.Mesh(legGeo.clone(), jointMat); rightLeg.position.set(0.14*scale, 0.35*scale, 0);
-  group.add(leftLeg); group.add(rightLeg);
-
-  var canvas = document.createElement("canvas"); canvas.width = 128; canvas.height = 20;
-  var ctx = canvas.getContext("2d"); var tex = new THREE.CanvasTexture(canvas);
-  var spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest:false, transparent:true });
-  var sprite = new THREE.Sprite(spriteMat); sprite.scale.set(1.0, 0.16, 1); sprite.position.y = 2.05*scale; sprite.renderOrder = 999;
-  group.add(sprite);
-
-  return {
-    group:group, torso:torso, head:head, leftArm:leftArm, rightArm:rightArm, gunMesh:gunMesh,
-    leftLeg:leftLeg, rightLeg:rightLeg, healthCanvas:canvas, healthCtx:ctx, healthTex:tex
-  };
-}
-
-function drawHealthBar(enemy){
-  var ctx = enemy.parts.healthCtx; var w = 128, h = 20; var frac = clamp(enemy.hp / enemy.maxHp, 0, 1);
-  ctx.clearRect(0,0,w,h); ctx.fillStyle = "rgba(10,12,11,0.75)"; ctx.fillRect(0,0,w,h);
-  ctx.fillStyle = frac > 0.5 ? "#3fae5b" : (frac > 0.22 ? "#d99a2b" : "#c23b3b"); ctx.fillRect(2,2,(w-4)*frac,h-4);
-  ctx.strokeStyle = "rgba(230,235,232,0.5)"; ctx.lineWidth = 1; ctx.strokeRect(0.5,0.5,w-1,h-1);
-  enemy.parts.healthTex.needsUpdate = true;
-}
-
-function spawnEnemy(sector, x, z, typeName){
-  var typeDef = enemyTypeDefs[typeName]; var hpMult = 1 + (floorNumber-1)*0.12;
-  var parts = createEnemyMesh(typeDef); parts.group.position.set(x, 0, z); scene.add(parts.group);
-
-  var id = ++enemyIdCounter;
-  var enemy = {
-    id:id, type:typeName, def:typeDef, parts:parts,
-    hp: Math.round(typeDef.hp * hpMult), maxHp: Math.round(typeDef.hp * hpMult),
-    state:"idle", alert:false, path:[], lastPathCalc:0,
-    lastFire:-9999, lastMelee:-9999, walkPhase: Math.random()*10,
-    dead:false, deathTimer:0, sectorKey: sectorKey(sector.sx, sector.sz),
-  };
-  drawHealthBar(enemy); enemies.push(enemy); sector.enemyIds.push(id);
-  return enemy;
-}
-
-function removeEnemyMesh(enemy){
-  enemy.parts.group.traverse(function(obj){
-    if (obj.geometry) obj.geometry.dispose();
-    if (obj.material) obj.material.dispose && obj.material.dispose();
-  });
-  scene.remove(enemy.parts.group);
-}
-
-function hasLineOfSight(fromPos, toPos){
-  var dir = new THREE.Vector3().subVectors(toPos, fromPos); var dist = dir.length(); dir.normalize();
-  raycaster.set(fromPos, dir); raycaster.far = dist;
-  var meshes = nearbyWallMeshes(1); var hits = raycaster.intersectObjects(meshes, false);
-  return hits.length === 0;
-}
-
-// Otimiza o BFS para gerar rota entre setores (simula o pathfinding desviando das paredes)
-function calculatePath(startSx, startSz, endSx, endSz) {
-  var queue = [[{sx: startSx, sz: startSz}]];
-  var visited = new Set([startSx+","+startSz]);
-  
-  while(queue.length > 0) {
-    var path = queue.shift();
-    var curr = path[path.length-1];
-    if (curr.sx === endSx && curr.sz === endSz) return path;
-    var dirs = [[0,1],[1,0],[0,-1],[-1,0]];
-    for (var i=0; i<dirs.length; i++) {
-      var nx = curr.sx + dirs[i][0], nz = curr.sz + dirs[i][1];
-      var k = nx+","+nz;
-      if (sectors.has(k) && !visited.has(k)) {
-        visited.add(k);
-        queue.push(path.concat([{sx:nx, sz:nz}]));
-      }
-    }
-  }
-  return [];
-}
-
-var ENEMY_MAX_RANGE = 14;
-
-function updateEnemies(dt, now){
-  var playerFeet = new THREE.Vector3(player.pos.x, 1.2, player.pos.z);
-  var pSector = worldToSector(playerFeet.x, playerFeet.z);
-
-  enemies.forEach(function(enemy){
-    if (enemy.dead){
-      enemy.deathTimer += dt;
-      var t = clamp(enemy.deathTimer/0.5, 0, 1);
-      enemy.parts.group.rotation.z = lerp(0, Math.PI/2, t);
-      enemy.parts.group.position.y = lerp(0, -0.4, t);
-      return;
-    }
+<div class="mbg" id="mbg">
+  <div class="modal">
+    <p class="mtitle">Ajustar Atributos</p>
+    <label>Nome do Competidor</label>
+    <input type="text" id="mn" maxlength="28">
+    <label>Foto de Perfil</label>
+    <div class="parea" id="parea">
+      <img id="mimg" style="display:none" alt="foto">
+      <div id="mph"><p>Clique para enviar imagem</p></div>
+    </div>
+    <input type="file" id="fin" accept="image/*" style="display:none">
     
-    // Atualizar setor atual do inimigo
-    var eSector = worldToSector(enemy.parts.group.position.x, enemy.parts.group.position.z);
-    enemy.sectorKey = sectorKey(eSector.sx, eSector.sz);
+    <label>Coragem — <span class="rval" id="rvc">50</span></label>
+    <input type="range" id="mc" min="1" max="100">
+    
+    <label>Inteligência — <span class="rval" id="rvi">50</span></label>
+    <input type="range" id="mi" min="1" max="100">
+    
+    <label>Força — <span class="rval" id="rvs">50</span></label>
+    <input type="range" id="ms" min="1" max="100">
+    
+    <div class="mbtns">
+      <button class="btn btns" id="mcancel">Cancelar</button>
+      <button class="btn btnp" id="msave">Confirmar Ajustes</button>
+    </div>
+  </div>
+</div>
 
-    var eyePos = new THREE.Vector3(enemy.parts.group.position.x, 1.4, enemy.parts.group.position.z);
-    var distToPlayer = eyePos.distanceTo(playerFeet);
-    var effectiveRange = Math.min(enemy.def.range, ENEMY_MAX_RANGE);
-    var visible = distToPlayer < effectiveRange && hasLineOfSight(eyePos, playerFeet);
-
-    if (visible) {
-      enemy.state = "alert";
-      enemy.path = []; // Vendo o player, vai direto
-    } else if (enemy.state === "alert" && distToPlayer > effectiveRange * 2.0) {
-      enemy.state = "idle";
-      enemy.path = [];
-    }
-
-    var moving = false;
-    if (enemy.state === "alert"){
-      var toTarget = new THREE.Vector3();
-      var targetDist = distToPlayer;
-
-      // PATHFINDING LOGIC
-      if (!visible) {
-        // Recalcular rota se estiver muito desatualizada
-        if (now - enemy.lastPathCalc > 1500 || enemy.path.length === 0) {
-          enemy.path = calculatePath(eSector.sx, eSector.sz, pSector.sx, pSector.sz);
-          enemy.lastPathCalc = now;
-        }
-        
-        if (enemy.path.length > 1) {
-          // O índice 0 é o atual. Busca ir para o centro do próximo setor no caminho
-          var nextNode = enemy.path[1];
-          var nodeCenter = new THREE.Vector3(nextNode.sx * SECTOR_SIZE, 0, nextNode.sz * SECTOR_SIZE);
-          toTarget.subVectors(nodeCenter, enemy.parts.group.position);
-          targetDist = toTarget.length();
-          
-          if (targetDist < 1.0) { // Alcançou waypoint
-            enemy.path.shift();
-          }
-        } else {
-          // Último nó (setor do jogador)
-          toTarget.subVectors(playerFeet, enemy.parts.group.position);
-        }
-      } else {
-        toTarget.subVectors(playerFeet, enemy.parts.group.position);
-      }
-      
-      toTarget.y = 0;
-      var faceAngle = Math.atan2(toTarget.x, toTarget.z);
-      enemy.parts.group.rotation.y = lerp(enemy.parts.group.rotation.y, faceAngle, dt*8);
-
-      if (enemy.def.behavior === "melee"){
-        if (distToPlayer > enemy.def.meleeRange * 0.9){
-          toTarget.normalize();
-          enemy.parts.group.position.x += toTarget.x * enemy.def.speed * dt;
-          enemy.parts.group.position.z += toTarget.z * enemy.def.speed * dt;
-          moving = true;
-        } else if (visible) {
-          if (now - enemy.lastMelee > enemy.def.fireInterval){
-            enemy.lastMelee = now;
-            damagePlayer(enemy.def.damage);
-            playDamageSound();
-            var lunge = enemy.parts.group; lunge.scale.setScalar(1.15); setTimeout(function(){ lunge.scale.setScalar(1.0); }, 140);
-          }
-        }
-      } else {
-        // Ranged: Apenas atira e ajusta distancia se tiver LOS
-        var idealMin = effectiveRange * 0.35;
-        var idealMax = effectiveRange * 0.85;
-        
-        if (!visible) {
-          // Sem LOS, avance ao longo do pathfind
-          toTarget.normalize();
-          enemy.parts.group.position.x += toTarget.x * enemy.def.speed * dt;
-          enemy.parts.group.position.z += toTarget.z * enemy.def.speed * dt;
-          moving = true;
-        } else {
-          if (distToPlayer < idealMin){
-            toTarget.normalize();
-            enemy.parts.group.position.x -= toTarget.x * enemy.def.speed * dt;
-            enemy.parts.group.position.z -= toTarget.z * enemy.def.speed * dt;
-            moving = true;
-          } else if (distToPlayer > idealMax){
-            toTarget.normalize();
-            enemy.parts.group.position.x += toTarget.x * enemy.def.speed * dt;
-            enemy.parts.group.position.z += toTarget.z * enemy.def.speed * dt;
-            moving = true;
-          }
-        }
-        
-        if (now - enemy.lastFire > enemy.def.fireInterval && visible){
-          enemy.lastFire = now;
-          fireEnemyWeapon(enemy, eyePos, playerFeet);
-          playEnemyShot();
-        }
-      }
-      resolveEnemyWallCollision(enemy);
-    }
-
-    if (moving){
-      enemy.walkPhase += dt * 8;
-      var swing = Math.sin(enemy.walkPhase) * 0.5;
-      enemy.parts.leftLeg.rotation.x = swing; enemy.parts.rightLeg.rotation.x = -swing; enemy.parts.leftArm.rotation.x = -swing;
-    } else {
-      enemy.parts.leftLeg.rotation.x = lerp(enemy.parts.leftLeg.rotation.x, 0, dt*6); enemy.parts.rightLeg.rotation.x = lerp(enemy.parts.rightLeg.rotation.x, 0, dt*6);
-    }
-  });
-
-  for (var i=enemies.length-1;i>=0;i--){
-    if (enemies[i].dead && enemies[i].deathTimer > 1.6){
-      removeEnemyMesh(enemies[i]);
-      var sec = sectors.get(enemies[i].sectorKey);
-      if (sec){ var ix = sec.enemyIds.indexOf(enemies[i].id); if (ix>=0) sec.enemyIds.splice(ix,1); }
-      enemies.splice(i,1);
-    }
-  }
-}
-
-function resolveEnemyWallCollision(enemy){
-  var pos = enemy.parts.group.position;
-  var walls = nearbyWalls();
-  var r = 0.35;
-  walls.forEach(function(w){
-    var closestX = clamp(pos.x, w.minX, w.maxX); var closestZ = clamp(pos.z, w.minZ, w.maxZ);
-    var dx = pos.x - closestX, dz = pos.z - closestZ;
-    var distSq = dx*dx + dz*dz;
-    if (distSq < r*r && distSq > 0.0001){
-      var dist = Math.sqrt(distSq); var push = (r - dist);
-      pos.x += (dx/dist) * push; pos.z += (dz/dist) * push;
-    }
-  });
-}
-
-function fireEnemyWeapon(enemy, fromPos, toPos){
-  spawnTracer(fromPos, toPos, 0xff6a3b);
-  var pellets = enemy.def.pellets || 1;
-  for (var i=0;i<pellets;i++){
-    var hitRoll = Math.random();
-    var accuracy = enemy.def.accuracy - (fromPos.distanceTo(toPos) / enemy.def.range) * 0.25;
-    if (hitRoll < accuracy) damagePlayer(Math.round(enemy.def.damage / pellets * (0.85+Math.random()*0.3)));
-  }
-}
-
-/* ------------------------------- combate ----------------------------------- */
-function damagePlayer(amount){
-  if (!player.alive) return;
-  player.health = clamp(player.health - amount, 0, player.maxHealth);
-  flashDamage(); updateHudVitals();
-  if (player.health <= 0) onPlayerDeath();
-}
-function healPlayer(amount){
-  player.health = clamp(player.health + amount, 0, player.maxHealth);
-  flashHeal(); playHealSound(); updateHudVitals();
-}
-
-function flashDamage(){ var el = document.getElementById("dmg-flash"); el.style.opacity = "0.85"; setTimeout(function(){ el.style.opacity = "0"; }, 160); }
-function flashHeal(){ var el = document.getElementById("heal-flash"); el.style.opacity = "0.8"; setTimeout(function(){ el.style.opacity = "0"; }, 260); }
-
-var mouseHeld = false;
-function onMouseDown(e){
-  if (e.button !== 0) return;
-  if (gameState !== "playing") return;
-  mouseHeld = true;
-  tryFire();
-}
-
-function tryFire(){
-  var def = weaponDefs[currentWeaponIdx];
-  var ammo = ammoState[currentWeaponIdx];
-  var now = performance.now();
-  if (reloading) return;
-  if (now - lastShotTime < def.fireRate) return;
-  if (ammo.clip <= 0){ startReload(); return; }
-  lastShotTime = now; ammo.clip--; updateHudWeapon();
-  recoilOffset = 0.09; muzzleFlashLight.intensity = 2.2; muzzleFlashTimer = 0.06;
-
-  playGunshot(currentWeaponIdx);
-  var origin = new THREE.Vector3(); camera.getWorldPosition(origin);
-  var forward = new THREE.Vector3(); camera.getWorldDirection(forward);
-  
-  var effectiveDmg = Math.round(def.damage * dmgMultiplier);
-
-  for (var i=0;i<def.pellets;i++){
-    var dir = forward.clone();
-    dir.x += (Math.random()-0.5) * def.spread; dir.y += (Math.random()-0.5) * def.spread; dir.z += (Math.random()-0.5) * def.spread;
-    dir.normalize();
-    raycaster.set(origin, dir); raycaster.far = def.range;
-
-    var enemyMeshMap = []; var hitMeshes = [];
-    enemies.forEach(function(en){
-      if (en.dead) return;
-      en.parts.group.traverse(function(o){ if (o.isMesh){ hitMeshes.push(o); enemyMeshMap.push(en); } });
-    });
-    var wallMeshes = nearbyWallMeshes(1);
-    var allTargets = hitMeshes.concat(wallMeshes);
-    var hits = raycaster.intersectObjects(allTargets, false);
-    if (hits.length > 0){
-      var hit = hits[0]; var hitIdx = hitMeshes.indexOf(hit.object); var endPoint = hit.point;
-      spawnTracer(origin, endPoint, 0xfff2c0);
-      if (hitIdx >= 0){
-        var target = enemyMeshMap[hitIdx];
-        applyDamageToEnemy(target, effectiveDmg);
-        spawnImpactParticles(endPoint, 0xffaa55);
-      } else { spawnImpactParticles(endPoint, 0xcccccc); }
-    } else {
-      var farPoint = origin.clone().add(dir.clone().multiplyScalar(def.range));
-      spawnTracer(origin, farPoint, 0xfff2c0);
-    }
-  }
-}
-
-function applyDamageToEnemy(enemy, dmg){
-  if (enemy.dead) return;
-  enemy.hp -= dmg; drawHealthBar(enemy);
-  enemy.parts.torso.material.emissive = new THREE.Color(0xffffff);
-  enemy.parts.torso.material.emissiveIntensity = 0.9;
-  setTimeout(function(){ if (enemy.parts.torso.material){ enemy.parts.torso.material.emissiveIntensity = 0; } }, 90);
-  if (enemy.hp <= 0){
-    enemy.dead = true; enemy.state = "dead";
-    spawnPointCube(enemy.parts.group.position, enemy.sectorKey);
-  }
-}
-
-function spawnTracer(from, to, color){
-  var geo = new THREE.BufferGeometry().setFromPoints([from.clone(), to.clone()]);
-  var mat = new THREE.LineBasicMaterial({ color:color, transparent:true, opacity:0.9 });
-  var line = new THREE.Line(geo, mat); scene.add(line); tracers.push({ mesh:line, life:0.09 });
-}
-
-function spawnImpactParticles(pos, color){
-  for (var i=0;i<5;i++){
-    var geo = new THREE.BoxGeometry(0.03,0.03,0.03); var mat = new THREE.MeshBasicMaterial({ color:color });
-    var mesh = new THREE.Mesh(geo, mat); mesh.position.copy(pos);
-    var vel = new THREE.Vector3((Math.random()-0.5)*2, Math.random()*2, (Math.random()-0.5)*2);
-    scene.add(mesh); particles.push({ mesh:mesh, vel:vel, life:0.4 });
-  }
-}
-
-function startReload(){
-  var ammo = ammoState[currentWeaponIdx]; var def = weaponDefs[currentWeaponIdx];
-  if (reloading || ammo.clip >= def.clip || ammo.reserve <= 0) return;
-  reloading = true; reloadStart = performance.now();
-  document.getElementById("reload-tag").classList.add("show");
-  playReloadSound();
-}
-function finishReload(){
-  var ammo = ammoState[currentWeaponIdx]; var def = weaponDefs[currentWeaponIdx];
-  var needed = def.clip - ammo.clip; var take = Math.min(needed, ammo.reserve);
-  ammo.clip += take; ammo.reserve -= take; reloading = false;
-  document.getElementById("reload-tag").classList.remove("show"); updateHudWeapon();
-}
-
-/* --------------------------------- upgrades menu ------------------------------------ */
-function toggleUpgradeMenu() {
-  if (gameState === "playing") {
-    gameState = "upgrade";
-    document.exitPointerLock && document.exitPointerLock();
-    document.getElementById("upgrade-screen").classList.remove("hidden");
-    updateUpgradeUI();
-  } else if (gameState === "upgrade") {
-    gameState = "playing";
-    document.getElementById("upgrade-screen").classList.add("hidden");
-    renderer.domElement.requestPointerLock();
-  }
-}
-
-function purchaseUpgrade(type) {
-  var cost = upgradeCosts[type];
-  if (playerPoints >= cost) {
-    playerPoints -= cost;
-    if (type === "hp") {
-      player.maxHealth += 25;
-      player.health += 25; // Cura um pouco ao evoluir
-      upgradeCosts.hp = Math.floor(upgradeCosts.hp * 1.5);
-    } else if (type === "dmg") {
-      dmgMultiplier += 0.15;
-      upgradeCosts.dmg = Math.floor(upgradeCosts.dmg * 1.6);
-    }
-    playUpgradeSound();
-    updateUpgradeUI();
-    updateHudVitals();
-  }
-}
-
-function updateUpgradeUI() {
-  document.getElementById("upg-pts-display").textContent = playerPoints;
-  document.getElementById("points-num").textContent = playerPoints;
-  document.getElementById("cost-hp").textContent = upgradeCosts.hp;
-  document.getElementById("cost-dmg").textContent = upgradeCosts.dmg;
-  document.getElementById("btn-upg-hp").disabled = (playerPoints < upgradeCosts.hp);
-  document.getElementById("btn-upg-dmg").disabled = (playerPoints < upgradeCosts.dmg);
-}
-
-/* --------------------------------- input ------------------------------------ */
-function onKeyDown(e){
-  if (e.code === "KeyR" && gameState==="playing") startReload();
-  if (e.code === "Digit1") switchWeapon(0);
-  if (e.code === "Digit2") switchWeapon(1);
-  if (e.code === "Digit3") switchWeapon(2);
-  if (e.code === "Digit4") switchWeapon(3);
-  if (e.code === "KeyE") toggleUpgradeMenu();
-}
-function onMouseMove(e){
-  if (!mouseLocked) return;
-  yaw -= e.movementX * 0.0022; pitch -= e.movementY * 0.0022;
-  pitch = clamp(pitch, -Math.PI/2 + 0.05, Math.PI/2 - 0.05);
-}
-function onPointerLockChange(){
-  mouseLocked = (document.pointerLockElement === renderer.domElement);
-  document.getElementById("pointer-hint").classList.toggle("hidden", mouseLocked || (gameState!=="playing"));
-}
-
-/* -------------------------------- movimento ---------------------------------- */
-function updatePlayer(dt){
-  var forward = (keys["KeyW"]?1:0) - (keys["KeyS"]?1:0);
-  var strafe = (keys["KeyD"]?1:0) - (keys["KeyA"]?1:0);
-  var sprintWanted = !!keys["ShiftLeft"] || !!keys["ShiftRight"];
-  player.sprinting = sprintWanted && (forward!==0 || strafe!==0) && player.stamina > 2;
-
-  var baseSpeed = 4.0;
-  var speed = player.sprinting ? baseSpeed * 1.85 : baseSpeed;
-
-  if (player.sprinting) player.stamina = clamp(player.stamina - dt*22, 0, player.maxStamina);
-  else player.stamina = clamp(player.stamina + dt*14, 0, player.maxStamina);
-
-  var moveVec = new THREE.Vector3(strafe, 0, -forward);
-  var moving = moveVec.lengthSq() > 0.00001;
-  if (moving){ moveVec.normalize(); moveVec.applyAxisAngle(new THREE.Vector3(0,1,0), yaw); moveVec.multiplyScalar(speed*dt); }
-
-  var newX = player.pos.x + moveVec.x; var newZ = player.pos.z + moveVec.z;
-  var walls = nearbyWalls(); var resolved = resolvePlayerCollision(newX, newZ, walls);
-  player.pos.x = resolved.x; player.pos.z = resolved.z;
-
-  if (moving && !player.sprinting) {
-    footstepTimer += dt;
-    if (footstepTimer > 0.35) { playFootstep(); footstepTimer = 0; }
-  } else if (moving && player.sprinting) {
-    footstepTimer += dt;
-    if (footstepTimer > 0.18) { playFootstep(); footstepTimer = 0; }
-  } else { footstepTimer = 0; }
-
-  if (moving) player.bobPhase += dt * (player.sprinting ? GRAVITY_EYE_BOB_SPEED*1.4 : GRAVITY_EYE_BOB_SPEED);
-  var bobY = moving ? Math.sin(player.bobPhase) * 0.045 : lerp(Math.sin(player.bobPhase)*0.045, 0, dt*6);
-  var eyeY = PLAYER_HEIGHT + bobY;
-
-  camera.position.set(player.pos.x, eyeY, player.pos.z);
-  camera.rotation.order = "YXZ"; camera.rotation.y = yaw; camera.rotation.x = pitch;
-
-  recoilOffset = lerp(recoilOffset, 0, dt*10);
-  var bobGunX = moving ? Math.sin(player.bobPhase*0.5) * 0.02 : 0;
-  var bobGunY = moving ? Math.abs(Math.sin(player.bobPhase)) * 0.02 : 0;
-  gunGroup.position.set(0.32 + bobGunX, -0.32 + bobGunY, -0.55 + recoilOffset);
-
-  if (reloading){
-    var def = weaponDefs[currentWeaponIdx];
-    var t = clamp((performance.now() - reloadStart)/def.reload, 0, 1);
-    var dip = Math.sin(t*Math.PI) * 0.22; gunGroup.rotation.x = dip;
-    if (t >= 1) finishReload();
-  } else { gunGroup.rotation.x = lerp(gunGroup.rotation.x, 0, dt*8); }
-
-  if (mouseHeld){ var def2 = weaponDefs[currentWeaponIdx]; if (def2.auto) tryFire(); }
-
-  muzzleFlashTimer = Math.max(0, muzzleFlashTimer - dt);
-  muzzleFlashLight.intensity = muzzleFlashTimer > 0 ? muzzleFlashLight.intensity*0.8 : 0;
-}
-
-function resolvePlayerCollision(x, z, walls){
-  var r = PLAYER_RADIUS; var newX = x, newZ = z;
-  for (var iter=0; iter<3; iter++){
-    var collided = false;
-    for (var i=0;i<walls.length;i++){
-      var w = walls[i]; var closestX = clamp(newX, w.minX, w.maxX); var closestZ = clamp(newZ, w.minZ, w.maxZ);
-      var dx = newX - closestX, dz = newZ - closestZ; var distSq = dx*dx + dz*dz;
-      if (distSq < r*r && distSq > 0.000001){
-        var dist = Math.sqrt(distSq); var push = (r - dist);
-        newX += (dx/dist) * push * 0.5; newZ += (dz/dist) * push * 0.5; collided = true;
-      }
-    }
-    if (!collided) break;
-  }
-  return { x:newX, z:newZ };
-}
-
-/* ------------------------------ pickups, points, lights e portal ------------------------ */
-function updatePickups(dt, now){
-  for (var i=pickups.length-1;i>=0;i--){
-    var p = pickups[i];
-    p.phase += dt; p.mesh.rotation.y += dt*1.6; p.mesh.position.y = p.baseY + Math.sin(p.phase*2)*0.08;
-    var d = Math.hypot(p.mesh.position.x - player.pos.x, p.mesh.position.z - player.pos.z);
-    if (d < 0.9){
-      healPlayer(p.healAmount); scene.remove(p.mesh);
-      var sec = sectors.get(p.sectorKey);
-      if (sec){ var ix = sec.pickupIds.indexOf(p.id); if (ix>=0) sec.pickupIds.splice(ix,1); }
-      pickups.splice(i,1);
-    }
-  }
-
-  for (var j=pointDrops.length-1;j>=0;j--){
-    var pd = pointDrops[j];
-    pd.phase += dt; pd.mesh.rotation.y += dt*2.0; pd.mesh.rotation.x += dt*1.0; 
-    pd.mesh.position.y = pd.baseY + Math.sin(pd.phase*3)*0.15;
-    var dSq = (pd.mesh.position.x - player.pos.x)**2 + (pd.mesh.position.z - player.pos.z)**2;
-    if (dSq < 1.5){ // approx < 1.22 dist
-      playerPoints += 1;
-      playCoinSound();
-      document.getElementById("points-num").textContent = playerPoints;
-      scene.remove(pd.mesh);
-      var sec2 = sectors.get(pd.sectorKey);
-      if (sec2){ var ix2 = sec2.pointDropsIds.indexOf(pd.id); if (ix2>=0) sec2.pointDropsIds.splice(ix2,1); }
-      pointDrops.splice(j,1);
-    }
-  }
-}
-
-function updateLights() {
-  // Liga as luzes apenas se estiverem perto do jogador (distância quadrada < 625 = 25 blocos)
-  ceilingLights.forEach(function(l) {
-    var dSq = (l.x - player.pos.x)**2 + (l.z - player.pos.z)**2;
-    l.light.intensity = dSq < 625 ? 0.9 : 0;
-  });
-}
-
-function updatePortal(dt){
-  if (!exitPortal || !exitPortal.mesh) return;
-  exitPortal.ring1.rotation.z += dt*0.8; exitPortal.ring2.rotation.z -= dt*1.1;
-  var d = exitPortal.worldPos.distanceTo(player.pos);
-  if (d < 1.6){ playPortalSound(); triggerFloorTransition(); }
-}
-
-function updateCompass(){
-  var el = document.getElementById("compass-arrow");
-  if (!exitPortal) return;
-  var targetPos = exitPortal.worldPos || new THREE.Vector3(exitPortal.sx*SECTOR_SIZE, 1.6, exitPortal.sz*SECTOR_SIZE);
-  var toTarget = new THREE.Vector3().subVectors(targetPos, player.pos);
-  
-  // Como ThreeJS usa -Z como forward e YAW=0 mira em -Z, ajustamos o angulo do compasso para ser zero quando alinhar perfeitamente
-  var angleToTarget = Math.atan2(toTarget.x, toTarget.z);
-  var rel = -(angleToTarget - yaw + Math.PI); 
-  
-  el.style.transform = "rotate(" + rel + "rad)";
-}
-
-/* --------------------------------- fx update ----------------------------------- */
-function updateFx(dt){
-  for (var i=tracers.length-1;i>=0;i--){
-    tracers[i].life -= dt; tracers[i].mesh.material.opacity = clamp(tracers[i].life/0.09, 0, 1);
-    if (tracers[i].life <= 0){
-      scene.remove(tracers[i].mesh); tracers[i].mesh.geometry.dispose(); tracers[i].mesh.material.dispose(); tracers.splice(i,1);
-    }
-  }
-  for (var j=particles.length-1;j>=0;j--){
-    var pp = particles[j]; pp.life -= dt; pp.mesh.position.addScaledVector(pp.vel, dt); pp.vel.y -= dt*5;
-    pp.mesh.material.opacity = clamp(pp.life/0.4,0,1); pp.mesh.material.transparent = true;
-    if (pp.life <= 0){
-      scene.remove(pp.mesh); pp.mesh.geometry.dispose(); pp.mesh.material.dispose(); particles.splice(j,1);
-    }
-  }
-}
-
-/* ------------------------------------ hud --------------------------------------- */
-function updateHudVitals(){
-  document.getElementById("health-fill").style.width = (player.health/player.maxHealth*100) + "%";
-  document.getElementById("health-num").textContent = Math.round(player.health);
-  document.getElementById("stamina-fill").style.width = (player.stamina/player.maxStamina*100) + "%";
-  document.getElementById("stamina-num").textContent = Math.round(player.stamina);
-}
-function updateHudWeapon(){
-  var def = weaponDefs[currentWeaponIdx]; var ammo = ammoState[currentWeaponIdx];
-  document.getElementById("weapon-name").textContent = def.key;
-  document.getElementById("ammo-count").innerHTML = ammo.clip + "<span> / " + ammo.reserve + "</span>";
-  document.querySelectorAll(".slot").forEach(function(el){ el.classList.toggle("active", parseInt(el.dataset.slot,10) === currentWeaponIdx); });
-}
-function updateHudFloor(){ document.getElementById("floor-num").textContent = floorNumber; }
-
-/* ----------------------------------- ciclo de andares ----------------------------- */
-function triggerFloorTransition(){
-  if (gameState !== "playing") return;
-  gameState = "transition"; var overlay = document.getElementById("floor-transition");
-  floorNumber++; floorSeedSalt = floorNumber * 7919 + 13;
-  document.getElementById("floor-transition-title").textContent = "ANDAR " + floorNumber;
-  overlay.classList.add("show");
-
-  setTimeout(function(){
-    clearFloor();
-    player.pos.set(0,PLAYER_HEIGHT,0); player.health = clamp(player.health + 25, 0, player.maxHealth);
-    chooseExitPortalLocation(); updateHudFloor(); updateHudVitals(); updateStreaming();
-    setTimeout(function(){ overlay.classList.remove("show"); gameState = "playing"; }, 350);
-  }, 900);
-}
-
-function clearFloor(){
-  var keys2 = Array.from(sectors.keys()); keys2.forEach(disposeSector);
-  enemies.length = 0; pickups.length = 0; pointDrops.length = 0; ceilingLights = [];
-}
-
-/* -------------------------------------- morte -------------------------------------- */
-function onPlayerDeath(){
-  gameState = "dead"; player.alive = false; document.exitPointerLock && document.exitPointerLock();
-  document.getElementById("death-stats").textContent = "ANDAR ALCANCADO: " + floorNumber;
-  document.getElementById("death-screen").classList.remove("hidden");
-  document.getElementById("hud").classList.remove("active");
-}
-
-/* -------------------------------------- ciclo principal ------------------------------ */
-function startGame(){
-  document.getElementById("title-screen").classList.add("hidden");
-  document.getElementById("death-screen").classList.add("hidden");
-  document.getElementById("hud").classList.add("active");
-
-  floorNumber = 1; floorSeedSalt = 1; clearFloor();
-  
-  // Reset upgrades for new game
-  playerPoints = 0; dmgMultiplier = 1.0;
-  upgradeCosts = { hp: 5, dmg: 5 };
-  document.getElementById("points-num").textContent = playerPoints;
-
-  player.pos.set(0, PLAYER_HEIGHT, 0); player.maxHealth = 100; player.health = player.maxHealth;
-  player.stamina = player.maxStamina; player.alive = true; yaw = 0; pitch = 0;
-
-  ammoState.forEach(function(a, i){ a.clip = weaponDefs[i].clip; a.reserve = weaponDefs[i].reserveMax; });
-  currentWeaponIdx = 0; gunModels.forEach(function(m,i){ m.visible = (i===0); });
-  reloading = false; document.getElementById("reload-tag").classList.remove("show");
-
-  chooseExitPortalLocation(); updateStreaming(); updateHudVitals(); updateHudWeapon(); updateHudFloor();
-
-  gameState = "playing"; renderer.domElement.requestPointerLock(); initAudio();
-}
-
-var lastTime = 0;
-var weaponDefs = [
-  { key:"PISTOLA M9",  short:"PST", damage:16, fireRate:330, clip:12, reserveMax:84, reload:1100, spread:0.010, pellets:1, auto:false, range:40, color:0x8a8f92 },
-  { key:"ESCOPETA TZ", short:"SHT", damage:11, fireRate:820, clip:6,  reserveMax:36, reload:1700, spread:0.085, pellets:7, auto:false, range:16, color:0x5a4632 },
-  { key:"SMG VECTOR",  short:"SMG", damage:9,  fireRate:95,  clip:32, reserveMax:160,reload:1500, spread:0.045, pellets:1, auto:true,  range:32, color:0x39424a },
-  { key:"RIFLE APEX",  short:"SNP", damage:62, fireRate:980, clip:5,  reserveMax:25, reload:2000, spread:0.002, pellets:1, auto:false, range:80, color:0x2e3b2e }
+<script>
+var DISTRICTS = ['Distrito 1','Distrito 2','Distrito 3','Distrito 4','Distrito 5','Distrito 6','Distrito 7','Distrito 8','Distrito 9','Distrito 10','Distrito 11','Distrito 12'];
+var DEFNAMES = [
+  ['Lucas','Beatriz'], ['Gabriel','Mariana'], ['Felipe','Amanda'], ['Bruno','Larissa'],
+  ['Rafael','Camila'], ['Thiago','Isabela'], ['Rodrigo','Juliana'], ['Gustavo','Letícia'],
+  ['Daniel','Fernanda'], ['Leonardo','Caroline'], ['Matheus','Vitória'], ['Pedro','Sofia']
 ];
-var ammoState = []; var currentWeaponIdx = 0; var lastShotTime = -9999; var reloading = false; var reloadStart = 0;
-var gunGroup, gunModels = []; var recoilOffset = 0; var muzzleFlashLight = null; var muzzleFlashTimer = 0;
-
-var enemyTypeDefs = {
-  grunt:  { hp:40,  speed:2.2, color:0x8a99a8, damage:8,  fireInterval:1350, accuracy:0.62, range:20, scale:1.00, behavior:"ranged", pellets:1, spread:0.09 },
-  rusher: { hp:24,  speed:4.1, color:0xc9502f, damage:16, fireInterval:850,  accuracy:1.0,  range:24, scale:0.92, behavior:"melee",  meleeRange:1.7 },
-  sniper: { hp:28,  speed:1.35,color:0x3c8f5e, damage:24, fireInterval:2100, accuracy:0.85, range:34, scale:1.02, behavior:"ranged", pellets:1, spread:0.02 },
-  tank:   { hp:110, speed:1.15,color:0x6f4f8f, damage:13, fireInterval:1700, accuracy:0.55, range:18, scale:1.55, behavior:"ranged", pellets:3, spread:0.18 }
+var DISTCOLORS = ['#e63946','#3a86c8','#a8dadc','#457b9d','#2a9d8f','#ffb703','#fb8500','#e76f51','#9c27b0','#4caf50','#ad5500','#e91e63'];
+var WEAPON_EFFECTS = {
+  "Mãos Nuas": "Sem Vantagem", "Faca": "Curto Alcance Veloz", "Arma de Fogo": "Dano Letal à Distância",
+  "Arco e Flecha": "Tiro Silencioso", "Tridente": "Empalamento a Média Distância", "Besta de Caça": "Projétil Pesado",
+  "Bomba Suicida": "Dano Mútuo Explosivo", "Martelo": "Esmagamento e Bloqueio", "Graveto Afiado": "Perfuração Rústica"
 };
 
-function loop(){
-  requestAnimationFrame(loop);
-  var dt = Math.min(clock.getDelta(), 0.05); var now = performance.now();
+var tributes = [];
+var editId = null;
+var tempPhoto = null;
+var currentDay = 0;
+var deadHistory = [];
+var escapedHistory = []; // tributos que fugiram
+var lastActionType = {};
 
-  if (gameState === "playing"){
-    updatePlayer(dt);
-    if (now - lastSectorCheck > 260){ updateStreaming(); lastSectorCheck = now; }
-    updateEnemies(dt, now);
-    updatePickups(dt, now);
-    updateLights(); // Gerencia lights ativas vs inativas
-    updatePortal(dt);
-    updateCompass();
-    updateFx(dt);
-  } else if (gameState === "upgrade") {
-    updateLights(); // Mantém visível no fundo
+var globalEvent = null;
+var globalEventDaysLeft = 0;
+var globalEventTargetId = null;
+var usedGlobalEvents = { "METEORO": false, "HEROI": false, "CHUVA_ACIDA": false, "BESTANTES": false, "INCENDIO": false, "FESTA": false, "ONDA_CRISE": false };
+
+// Plano de fuga pendente para o próximo dia
+// { proposerId, partnerId, accepted: bool }
+var escapePlanPending = null;
+
+var districtForteProgress = {};
+var districtForteFinished = {};
+var ritualProgress = {};
+var lastMultiDayEventWeek = -1;
+
+function ri(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+function pct(n){ return Math.random()<n; }
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+function aliveList(){ return tributes.filter(function(t){ return t.alive && !t.escaped; }); }
+
+// ============================================================
+// VERIFICAÇÃO DE STAT MÁXIMO — dispara crise ao atingir 100
+// ============================================================
+function checkStatMax(t, stat, events) {
+  if (!t.alive || t.escaped) return;
+  if (t[stat] < 100) return;
+  // Cada stat tem sua própria flag para não repetir
+  var flagKey = 'crisisTriggered_' + stat;
+  if (t[flagKey]) return;
+  t[flagKey] = true;
+
+  if (stat === 'courage') {
+    t.supremeCourageDays = 3;
+    t.crisisGlow = true;
+    events.push({ id:[t.id], type:'crisis', text: t.name + ' atingiu CORAGEM MÁXIMA! Uma determinação sobre-humana tomou conta de seu ser — por 3 dias nenhum dano conseguirá tocá-lo! ⚡ DETERMINAÇÃO DIVINA ATIVADA!', status: 'Coragem Máxima' });
+  } else if (stat === 'intel') {
+    t.supremeIntelDays = 3;
+    t.crisisGlow = true;
+    events.push({ id:[t.id], type:'crisis', text: t.name + ' atingiu INTELIGÊNCIA MÁXIMA! Seu cérebro transcendeu os limites humanos — por 3 dias prevê e esquiva de qualquer ataque com perfeição! ⚡ MENTE SUPREMA ATIVADA!', status: 'Intel Máxima' });
+  } else if (stat === 'strength') {
+    t.supremeStrengthDays = 3;
+    t.crisisGlow = true;
+    events.push({ id:[t.id], type:'crisis', text: t.name + ' atingiu FORÇA MÁXIMA! Uma potência titânica flui em seus músculos — por 3 dias qualquer atacante será destruído instantaneamente! ⚡ FORÇA DE TITÃ ATIVADA!', status: 'Força Máxima' });
   }
-
-  document.getElementById("pointer-hint").classList.toggle("hidden", mouseLocked || (gameState!=="playing"));
-  renderer.render(scene, camera);
 }
 
-init();
-})();
+function initTributes(){
+  tributes=[]; deadHistory=[]; escapedHistory=[]; lastActionType={}; districtForteProgress={}; districtForteFinished={}; ritualProgress={};
+  currentDay=0; globalEvent=null; globalEventDaysLeft=0; lastMultiDayEventWeek=-1; escapePlanPending=null;
+  for(var k in usedGlobalEvents) usedGlobalEvents[k] = false;
+
+  for(var d=0; d<12; d++){
+    for(var s=0; s<2; s++){
+      var persRoll = Math.random();
+      var pers = null;
+      if(persRoll < 0.10) pers = 'Psicopata';
+      else if(persRoll < 0.20) pers = 'Esperto';
+      else if(persRoll < 0.30) pers = 'Medroso';
+      else if(persRoll < 0.40) pers = 'Trainer'; // NOVA PERSONALIDADE
+
+      tributes.push({
+        id: d*2+s, district: d, name: DEFNAMES[d][s], photo: null,
+        health: 100, hunger: 100, thirst: 100,
+        courage: ri(25,65), intel: ri(25,65), strength: ri(25,65),
+        alive: true, escaped: false, dayDied: null, dayEscaped: null, grievedForPartner: false,
+        weapon: null, crisisGlow: false, kills: 0, insanity: 0, personality: pers,
+        supremeIntelDays: 0, supremeStrengthDays: 0, supremeCourageDays: 0, meteorBuffDays: 0,
+        urgentRecoveryUsed: false, // flag: Recuperação Urgente só 1x por pessoa
+        // flags de crise por stat
+        crisisTriggered_courage: false,
+        crisisTriggered_intel: false,
+        crisisTriggered_strength: false
+      });
+    }
+  }
+}
+
+function getTooltipHTML(t) {
+  var effects = [];
+  if(t.supremeIntelDays > 0) effects.push("Mente Suprema");
+  if(t.supremeCourageDays > 0) effects.push("Determinação Divina");
+  if(t.supremeStrengthDays > 0) effects.push("Força de Titã");
+  if(t.insanity > 75) effects.push("Surto Psicótico");
+  else if(t.insanity > 40) effects.push("Instável");
+  if(t.escaped) effects.push("FUGIU DA ARENA");
+
+  var effStr = effects.length ? effects.join(', ') : 'Nenhum';
+  var wepStat = t.weapon ? WEAPON_EFFECTS[t.weapon] : WEAPON_EFFECTS["Mãos Nuas"];
+  var pName = t.personality || 'Normal';
+
+  return '<div class="thover-box">'
+    +'<p><strong>'+t.name+'</strong> '+(t.kills !== undefined ? '| Kills: '+t.kills : '')+'</p>'
+    +'<p>Vida: '+t.health+'/100</p>'
+    +'<p>Fome: '+t.hunger+' | Sede: '+t.thirst+'</p>'
+    +'<p>Cor: '+t.courage+' | Int: '+t.intel+' | For: '+t.strength+'</p>'
+    +'<p class="spec-lbl">Perfil: '+pName+' | Insanidade: '+t.insanity+'</p>'
+    +'<p class="spec-lbl">Efeitos Ativos: '+effStr+'</p>'
+    +'<p class="inv-lbl">Arma: '+(t.weapon || 'Nenhuma')+' <br><span style="font-size:0.75rem; color:#ccc;">['+wepStat+']</span></p>'
+  +'</div>';
+}
+
+function renderReaping(){
+  var grid=document.getElementById('dgrid'); grid.innerHTML='';
+  for(var d=0; d<12; d++){
+    var t0=tributes[d*2], t1=tributes[d*2+1];
+    var card=document.createElement('div');
+    card.className='dcard';
+    card.innerHTML='<div class="dhdr"><p class="dlbl">'+DISTRICTS[d]+'</p><div class="clr-picker">Cor: <input type="color" value="'+DISTCOLORS[d]+'" data-dist="'+d+'"></div></div><div class="trow">'+tCardHTML(t0)+tCardHTML(t1)+'</div>';
+
+    card.querySelector('input[type=color]').addEventListener('input', function(){
+      var distIdx = this.getAttribute('data-dist');
+      DISTCOLORS[distIdx] = this.value;
+      grid.querySelectorAll('.tpw-d' + distIdx).forEach(function(c) { c.style.backgroundColor = this.value; }, this);
+    });
+
+    (function(a,b){
+      card.querySelectorAll('.tcard')[0].addEventListener('click',function(){ openModal(a.id); });
+      card.querySelectorAll('.tcard')[1].addEventListener('click',function(){ openModal(b.id); });
+    })(t0,t1);
+    grid.appendChild(card);
+  }
+}
+
+function tCardHTML(t){
+  var ph=t.photo ? '<img class="tph" src="'+t.photo+'">' : '<div class="tphd">'+t.name[0]+'</div>';
+  var clr = DISTCOLORS[t.district];
+  return '<div class="tcard">'
+    + getTooltipHTML(t)
+    +'<div class="tpw tpw-d'+t.district+'" style="background-color:'+clr+'">'+ph+'</div>'
+    +'<p class="tnm">'+t.name+'</p>'
+    +'<div class="sbars">'
+    +'<div class="srow"><span class="slbl">Vida</span><div class="strk"><div class="sfil hp" style="width:'+t.health+'%"></div></div></div>'
+    +'<div class="srow"><span class="slbl">Coragem</span><div class="strk"><div class="sfil c" style="width:'+t.courage+'%"></div></div></div>'
+    +'<div class="srow"><span class="slbl">Intel.</span><div class="strk"><div class="sfil i" style="width:'+t.intel+'%"></div></div></div>'
+    +'<div class="srow"><span class="slbl">Força</span><div class="strk"><div class="sfil s" style="width:'+t.strength+'%"></div></div></div>'
+    +'</div></div>';
+}
+
+function openModal(id){
+  editId=id; tempPhoto=null; var t=tributes[id];
+  document.getElementById('mn').value=t.name;
+  document.getElementById('mc').value=t.courage; document.getElementById('mi').value=t.intel; document.getElementById('ms').value=t.strength;
+  document.getElementById('rvc').textContent=t.courage; document.getElementById('rvi').textContent=t.intel; document.getElementById('rvs').textContent=t.strength;
+  var img=document.getElementById('mimg'), mph=document.getElementById('mph');
+  if(t.photo){ img.src=t.photo; img.style.display='block'; mph.style.display='none'; }
+  else{ img.style.display='none'; mph.style.display='block'; }
+  document.getElementById('mbg').classList.add('on');
+}
+function closeModal(){ document.getElementById('mbg').classList.remove('on'); }
+
+document.getElementById('mc').oninput=function(){ document.getElementById('rvc').textContent=this.value; };
+document.getElementById('mi').oninput=function(){ document.getElementById('rvi').textContent=this.value; };
+document.getElementById('ms').oninput=function(){ document.getElementById('rvs').textContent=this.value; };
+document.getElementById('mcancel').onclick=closeModal;
+document.getElementById('parea').onclick=function(){ document.getElementById('fin').click(); };
+document.getElementById('fin').onchange=function(e){
+  var file=e.target.files[0]; if(!file) return;
+  var r=new FileReader();
+  r.onload=function(ev){
+    tempPhoto=ev.target.result;
+    var img=document.getElementById('mimg'); img.src=tempPhoto; img.style.display='block';
+    document.getElementById('mph').style.display='none';
+  };
+  r.readAsDataURL(file);
+};
+document.getElementById('msave').onclick=function(){
+  var t=tributes[editId]; var nm=document.getElementById('mn').value.trim(); if(nm) t.name=nm;
+  t.courage=parseInt(document.getElementById('mc').value); t.intel=parseInt(document.getElementById('mi').value); t.strength=parseInt(document.getElementById('ms').value);
+  if(tempPhoto) t.photo=tempPhoto; closeModal(); renderReaping();
+};
+
+// ============================================================
+// MORTE / DANO
+// ============================================================
+function checkDeath(t, rawDamage, reason, dailyDead, events, attacker) {
+  if (!t.alive || t.escaped) return false;
+
+  var dmgReduction = t.courage / 200;
+  var actualDamage = Math.max(1, Math.floor(rawDamage * (1 - dmgReduction)));
+
+  if (t.supremeCourageDays > 0) {
+    events.push({ id:[t.id], type:"crisis", text: t.name + " sofreu danos (" + reason + "), mas sua determinação divina ignorou o ferimento por completo!", status: "Dano Anulado" });
+    return false;
+  }
+
+  if (t.personality === 'Medroso' && attacker) {
+    t.courage = clamp(t.courage - 25, 1, 100);
+  }
+
+  t.health = clamp(t.health - actualDamage, 0, 100);
+  if (t.health <= 0) {
+    if(t.weapon === "Bomba Suicida") {
+      t.alive = false; t.dayDied = currentDay; dailyDead.push(t); deadHistory.push(t);
+      if(attacker) attacker.kills++;
+      t.weapon = null;
+      events.push({ id:[t.id], type:"death", text: t.name + " foi ferido mortalmente, mas ativou seu dispositivo de " + reason + " detonando sua BOMBA SUICIDA e gerando um clarão devastador na clareira!", status: "MARTÍRIO" });
+      return "BOMBA";
+    }
+    t.alive = false; t.dayDied = currentDay; dailyDead.push(t); deadHistory.push(t);
+    if(attacker) attacker.kills++;
+    events.push({ id:[t.id], type:"death", text: t.name + " sucumbiu fatalmente: " + reason, status: "ELIMINADO" });
+    return true;
+  }
+  return false;
+}
+
+// ============================================================
+// CONTRAGOLPE
+// ============================================================
+function processCounterAttack(attacker, defender, baseDamage, weaponName, dailyDead, events) {
+  var defWep = defender.weapon || "Mãos Nuas";
+  var counterChance = 0.25 + (defender.strength / 200);
+  if (defender.personality === 'Esperto') counterChance += 0.20;
+
+  if (Math.random() > counterChance) return false;
+
+  if (defender.supremeStrengthDays > 0) {
+    checkDeath(attacker, 55, "Tentou travar combate contra o titã de força " + defender.name + ", mas foi erguido pelo pescoço e quebrado ao meio.", dailyDead, events, defender);
+    return true;
+  }
+  if (defender.supremeIntelDays > 0) {
+    events.push({ id:[attacker.id, defender.id], type:"normal", text: attacker.name + " desferiu um bote mortal, mas " + defender.name + " previu os impulsos elétricos do ataque e desviou elegantemente.", status: "Esquiva Suprema" });
+    return true;
+  }
+
+  if (defWep === "Martelo") {
+    attacker.health = clamp(attacker.health - 25, 0, 100);
+    events.push({ id:[attacker.id, defender.id], type:"bad", text: attacker.name + " avançou para golpear, mas " + defender.name + " usou a força para contra-atacar e usar o cabo do Martelo para quebrar as costelas do agressor (+15 Força)!", status: "Bloqueio de Martelo" });
+    defender.strength = clamp(defender.strength + 15, 1, 100);
+    checkDeath(attacker, 0, "Sucumbiu aos ferimentos internos do contra-ataque de Martelo.", dailyDead, events, defender);
+    return true;
+  }
+  else if (defWep === "Faca") {
+    attacker.health = clamp(attacker.health - 20, 0, 100);
+    events.push({ id:[attacker.id, defender.id], type:"bad", text: attacker.name + " tentou encurralar " + defender.name + ", mas o defensor puxou uma Faca rapidamente e cortou o peito do atacante!", status: "Contra-ataque Cortante" });
+    checkDeath(attacker, 0, "Sangrou até morrer após ser cortado no contra-ataque.", dailyDead, events, defender);
+    return true;
+  }
+  else if (defWep === "Arma de Fogo" || defWep === "Besta de Caça") {
+    var res = checkDeath(attacker, 100, "Tomou um tiro letal de resposta no peito ao tentar encurralar " + defender.name + ".", dailyDead, events, defender);
+    if (!res) { events.push({ id:[attacker.id, defender.id], type:"bad", text: attacker.name + " tentou atacar, mas " + defender.name + " disparou sua arma para se defender! O atacante resistiu por pouco.", status: "Defesa Armada" }); }
+    return true;
+  }
+  else if (defWep === "Arco e Flecha") {
+    var res = checkDeath(attacker, 50, "Tomou uma flechada fatal ao tentar atacar " + defender.name + ".", dailyDead, events, defender);
+    if (!res) { events.push({ id:[attacker.id, defender.id], type:"bad", text: attacker.name + " partiu para cima, mas " + defender.name + " puxou a corda do arco rapidamente e disparou uma flecha de defesa!", status: "Flechada Defensiva" }); }
+    return true;
+  }
+  else if (defWep === "Tridente") {
+    var res = checkDeath(attacker, 75, "Foi empalado pelo tridente longo de " + defender.name + ".", dailyDead, events, defender);
+    if (!res) { events.push({ id:[attacker.id, defender.id], type:"bad", text: attacker.name + " avançou cego, mas " + defender.name + " usou o longo alcance de seu Tridente para perfurar e repelir o atacante!", status: "Empalado" }); }
+    return true;
+  }
+  else if (defWep === "Bomba Suicida") {
+    events.push({ id:[attacker.id, defender.id], type:"crisis", text: attacker.name + " recuou aterrorizado ao ver que " + defender.name + " abriu o casaco mostrando fios de C4 prontos para detonação caso fosse tocado! (+10 Insanidade)", status: "Ameaça Explosiva" });
+    defender.insanity = clamp(defender.insanity + 10, 0, 100);
+    return true;
+  }
+  else {
+    attacker.health = clamp(attacker.health - 15, 0, 100);
+    events.push({ id:[attacker.id, defender.id], type:"normal", text: attacker.name + " iniciou o ataque com " + weaponName + ", mas a Força de " + defender.name + " permitiu desviar o pulso do rival e encaixar um soco direto no queixo!", status: "CONTRAGOLPEADO" });
+    checkDeath(attacker, 0, "Nocauteado e morto no chão após sofrer forte trauma craniano na defesa.", dailyDead, events, defender);
+    return true;
+  }
+}
+
+// ============================================================
+// EVENTO: ONDA DE CRISE DE DISTRITO
+// ============================================================
+function applyOndaCrise(events, alv) {
+  // Escolhe um distrito aleatório que ainda tem alguém vivo
+  var districtPool = [];
+  alv.forEach(function(t) {
+    if(districtPool.indexOf(t.district) === -1) districtPool.push(t.district);
+  });
+  if(!districtPool.length) return;
+  var targetDistrict = districtPool[ri(0, districtPool.length - 1)];
+  var victimList = alv.filter(function(t){ return t.district === targetDistrict; });
+
+  // Tipos de crise ruim
+  var criseTypes = [
+    {
+      name: "Surto de Paranoia Coletiva",
+      apply: function(t) {
+        t.insanity = clamp(t.insanity + ri(25,45), 0, 100);
+        t.intel = clamp(t.intel - ri(15,25), 1, 100);
+        return t.name + " entrou em colapso psicótico. Insanidade +30~45, Inteligência -15~25.";
+      }
+    },
+    {
+      name: "Gás Alucinógeno",
+      apply: function(t) {
+        t.insanity = clamp(t.insanity + ri(20,35), 0, 100);
+        t.courage = clamp(t.courage - ri(20,30), 1, 100);
+        return t.name + " inalou o gás e entrou em delírio, perdendo controle dos sentidos. Insanidade +20~35, Coragem -20~30.";
+      }
+    },
+    {
+      name: "Enfraquecimento Muscular",
+      apply: function(t) {
+        t.strength = clamp(t.strength - ri(25,40), 1, 100);
+        t.health = clamp(t.health - ri(10,20), 1, 100);
+        return t.name + " sentiu os membros ficarem de gelatina por uma toxina injetada na água. Força -25~40, Vida -10~20.";
+      }
+    },
+    {
+      name: "Apagão de Memória",
+      apply: function(t) {
+        t.intel = clamp(t.intel - ri(30,45), 1, 100);
+        t.weapon = null;
+        return t.name + " perdeu memórias críticas de sobrevivência após um pulso eletromagnético cerebral. Inteligência -30~45, Arma perdida.";
+      }
+    }
+  ];
+
+  var crise = criseTypes[ri(0, criseTypes.length - 1)];
+  var descLines = [];
+  victimList.forEach(function(t) {
+    var desc = crise.apply(t);
+    descLines.push(desc);
+    // Verifica se stat caiu muito (não aplica max aqui, é crise de baixa)
+  });
+
+  var idsList = victimList.map(function(t){ return t.id; });
+  events.push({
+    id: idsList,
+    type: 'crisis',
+    text: '⚡ ONDA DE CRISE — ' + DISTRICTS[targetDistrict].toUpperCase() + ': O Capitólio ativou o protocolo "' + crise.name + '" sobre o ' + DISTRICTS[targetDistrict] + '! ' + descLines.join(' '),
+    status: crise.name
+  });
+}
+
+// ============================================================
+// EVENTO: PLANO DE FUGA (proposta no dia atual, resolução no próximo)
+// ============================================================
+function tryProposarFuga(alv, events) {
+  if(escapePlanPending) return; // já tem um pendente
+  if(alv.length < 3) return; // precisa de pelo menos 3 pra valer (evita final)
+
+  // Escolhe dois de distritos diferentes
+  var shuffled = alv.slice().sort(function(){ return Math.random() - 0.5; });
+  var proposer = null, partner = null;
+  for(var i=0; i<shuffled.length; i++){
+    for(var j=i+1; j<shuffled.length; j++){
+      if(shuffled[i].district !== shuffled[j].district){
+        proposer = shuffled[i];
+        partner = shuffled[j];
+        break;
+      }
+    }
+    if(proposer) break;
+  }
+  if(!proposer || !partner) return;
+
+  // 50% de aceitar
+  var accepted = Math.random() < 0.5;
+
+  if(accepted) {
+    escapePlanPending = { proposerId: proposer.id, partnerId: partner.id };
+    events.push({
+      id: [proposer.id, partner.id],
+      type: 'edescape',
+      text: '🗺️ PLANO DE FUGA: ' + proposer.name + ' (' + DISTRICTS[proposer.district] + ') aproximou-se sorrateiramente de ' + partner.name + ' (' + DISTRICTS[partner.district] + ') com um mapa improvisado da grade elétrica. O parceiro analisou friamente e... ACEITOU O PLANO! Amanhã ao amanhecer, eles tentarão fugir pelos túneis de manutenção da arena!',
+      status: 'Fuga Planejada'
+    });
+  } else {
+    events.push({
+      id: [proposer.id, partner.id],
+      type: 'normal',
+      text: '🗺️ PROPOSTA RECUSADA: ' + proposer.name + ' arriscou tudo propondo uma aliança de fuga para ' + partner.name + '. Após um silêncio gélido, ' + partner.name + ' recusou com um olhar frio: "Só um sai vivo." O clima entre os dois ficou tenso.',
+      status: 'Fuga Negada'
+    });
+  }
+}
+
+// ============================================================
+// RESOLVER FUGA (no início do próximo dia)
+// ============================================================
+function resolverFuga(events, dailyDead) {
+  if(!escapePlanPending) return;
+  var plan = escapePlanPending;
+  escapePlanPending = null;
+
+  var p1 = tributes[plan.proposerId];
+  var p2 = tributes[plan.partnerId];
+
+  if(!p1 || !p2 || !p1.alive || !p2.alive || p1.escaped || p2.escaped) return;
+
+  // Score de fuga: média ponderada de coragem + intel + força + vida, penalizado por insanidade
+  function escapeScore(t) {
+    return (t.courage * 0.35 + t.intel * 0.35 + t.strength * 0.20 + t.health * 0.10) - (t.insanity * 0.15);
+  }
+
+  var score1 = escapeScore(p1);
+  var score2 = escapeScore(p2);
+  var avgScore = (score1 + score2) / 2;
+  // Threshold base 45, mais difícil se stats baixos, mais fácil se altos
+  var escapeThreshold = 45;
+
+  var success = avgScore >= escapeThreshold;
+
+  if(success) {
+    // Ambos escapam!
+    p1.escaped = true; p1.alive = false; p1.dayEscaped = currentDay;
+    p2.escaped = true; p2.alive = false; p2.dayEscaped = currentDay;
+    escapedHistory.push(p1, p2);
+    events.push({
+      id: [p1.id, p2.id],
+      type: 'edescape',
+      text: '🏃 FUGA BEM-SUCEDIDA! ' + p1.name + ' e ' + p2.name + ' usaram seus conhecimentos combinados para hackear o painel de controle da grade e abriram uma brecha nos túneis subterrâneos. Os Peacekeepers chegaram tarde demais — dois tributos escaparam da arena e voltaram para suas famílias! O Capitólio está furioso.',
+      status: 'ESCAPARAM!'
+    });
+  } else {
+    // Falha — luta contra os guardas, quem tem mais força/vida sobrevive, o outro morre
+    var survived = null, died = null;
+    if(score1 >= score2) { survived = p1; died = p2; }
+    else { survived = p2; died = p1; }
+
+    // Dano para quem sobreviveu
+    survived.health = clamp(survived.health - ri(25,45), 0, 100);
+
+    var diedActually = survived.health <= 0;
+
+    if(diedActually) {
+      // Os dois morrem
+      p1.alive = false; p1.dayDied = currentDay; dailyDead.push(p1); deadHistory.push(p1);
+      p2.alive = false; p2.dayDied = currentDay; dailyDead.push(p2); deadHistory.push(p2);
+      events.push({
+        id: [p1.id, p2.id],
+        type: 'death',
+        text: '💀 FUGA FRACASSADA: ' + p1.name + ' e ' + p2.name + ' chegaram aos túneis, mas foram emboscados por uma patrulha pesada de Peacekeepers. Após uma batalha brutal nos corredores escuros, ambos sucumbiram aos ferimentos. O Capitólio executa os fugitivos como exemplo.',
+        status: 'CAPTURADOS E MORTOS'
+      });
+    } else {
+      died.alive = false; died.dayDied = currentDay; dailyDead.push(died); deadHistory.push(died);
+      events.push({
+        id: [p1.id, p2.id],
+        type: 'death',
+        text: '⚔️ FUGA PARCIAL: ' + p1.name + ' e ' + p2.name + ' bateram de frente com a guarda armada nos túneis. Em meio ao caos, ' + died.name + ' foi abatido pelos Peacekeepers cobrindo a retirada. ' + survived.name + ' sobreviveu ferido mas foi recapturado e devolvido à arena.',
+        status: 'Fuga Fracassada'
+      });
+    }
+  }
+}
+
+// ============================================================
+// GERAÇÃO DO DIA
+// ============================================================
+function generateNextDayDynamic(){
+  currentDay++;
+  var alv = aliveList();
+  if(alv.length <= 1) return null;
+
+  var events = []; var dailyDead = [];
+  var currentWeek = Math.floor((currentDay - 1) / 7);
+
+  // --- Resolver fuga pendente ANTES de tudo ---
+  if(escapePlanPending) {
+    resolverFuga(events, dailyDead);
+    alv = aliveList();
+    if(alv.length <= 1) {
+      return { day: currentDay, gev: { name: "Resolução da Fuga", text: "Os eventos da tentativa de fuga definiram o destino dos últimos combatentes." }, events: events, dead: dailyDead };
+    }
+  }
+
+  // ================= 1. EVENTOS GLOBAIS =================
+  var txtGev = "O Capitólio monitora os sinais vitais dos guerreiros. O sol desponta na arena hostil."; var tagGev = "Estável";
+
+  if(currentDay === 1) {
+    txtGev = "O BANHO DE SANGUE: O gongo soou! Os tributos descem desesperados de seus pedestais. A Corrida para a Cornucópia recheada de armas começou e o caos é absoluto!";
+    tagGev = "A Cornucópia";
+  }
+  else if (globalEventDaysLeft <= 0) {
+    // CHANCE AUMENTADA: 35% (era 18%)
+    if (pct(0.35)) {
+      var poolG = [];
+      if(!usedGlobalEvents["METEORO"]) poolG.push("METEORO");
+      if(!usedGlobalEvents["HEROI"]) poolG.push("HEROI");
+      if(!usedGlobalEvents["CHUVA_ACIDA"]) poolG.push("CHUVA_ACIDA");
+      if(!usedGlobalEvents["BESTANTES"]) poolG.push("BESTANTES");
+      if(!usedGlobalEvents["INCENDIO"]) poolG.push("INCENDIO");
+      if(currentDay > 4 && alv.length > 4 && !usedGlobalEvents["FESTA"]) poolG.push("FESTA");
+      // ONDA DE CRISE pode repetir (não usa usedGlobalEvents)
+      poolG.push("ONDA_CRISE");
+      poolG.push("ONDA_CRISE"); // peso duplo
+
+      if(poolG.length > 0) {
+        globalEvent = poolG[ri(0, poolG.length - 1)];
+        if(globalEvent !== "ONDA_CRISE") usedGlobalEvents[globalEvent] = true;
+
+        if (globalEvent === "METEORO") { globalEventDaysLeft = 3; var pTarget = alv[ri(0, alv.length - 1)]; globalEventTargetId = pTarget.id; pTarget.meteorBuffDays = 3; pTarget.strength = clamp(pTarget.strength + 30, 1, 100); }
+        else if (globalEvent === "HEROI") { globalEventDaysLeft = 2; }
+        else if (globalEvent === "CHUVA_ACIDA") { globalEventDaysLeft = 1; }
+        else if (globalEvent === "BESTANTES") { globalEventDaysLeft = 1; }
+        else if (globalEvent === "INCENDIO") { globalEventDaysLeft = 2; }
+        else if (globalEvent === "FESTA") { globalEventDaysLeft = 1; }
+        else if (globalEvent === "ONDA_CRISE") { globalEventDaysLeft = 1; }
+      } else { globalEvent = null; }
+    } else { globalEvent = null; }
+  }
+
+  // APLICAR EFEITOS GLOBAIS
+  if (globalEvent === "METEORO") {
+    var tgt = tributes[globalEventTargetId];
+    txtGev = "A queda de um meteoro radioativo iluminou a arena! A poeira cósmica concedeu mutações de força a " + (tgt && tgt.alive ? tgt.name : "um quadrante isolado") + ".";
+    tagGev = "Meteoro Cadente"; globalEventDaysLeft--;
+  }
+  else if (globalEvent === "HEROI") {
+    txtGev = globalEventDaysLeft === 2 ? "Um Herói Patrocinador mascarado invadiu ilegalmente o perímetro portando fuzis pesados!" : "O Herói invasor foi abatido pelas snipers automáticas do Capitólio nas bordas da Arena.";
+    tagGev = "Invasor na Arena"; globalEventDaysLeft--;
+  }
+  else if (globalEvent === "CHUVA_ACIDA") {
+    txtGev = "Uma nuvem tóxica de Chuva Ácida cobriu as matas, castigando gravemente quem estava sem abrigo fortificado!";
+    tagGev = "Chuva Ácida"; globalEventDaysLeft--;
+    alv.forEach(function(t) {
+      if(!districtForteFinished[t.district]) checkDeath(t, 25, "Sofreu queimaduras químicas fatais da chuva tóxica.", dailyDead, events);
+    });
+  }
+  else if (globalEvent === "BESTANTES") {
+    txtGev = "MUTAÇÃO LIBERADA: Matilhas de Lobos-Bestantes foram soltas pelos Idealizadores! Gritos ecoam pela arena.";
+    tagGev = "Bestantes Selvagens"; globalEventDaysLeft--;
+    alv.forEach(function(t) {
+      if(!t.weapon || t.weapon === "Graveto Afiado") checkDeath(t, 45, "Foi despedaçado vivo pelas garras dos Bestantes do Capitólio.", dailyDead, events);
+      else { t.health = clamp(t.health - 15, 0, 100); events.push({ id:[t.id], type:"normal", text: t.name + " usou sua arma (" + t.weapon + ") para lutar e espantar os Bestantes, saindo com arranhões.", status: "Sobreviveu à Matilha" }); checkDeath(t, 0, "Sangrou até morrer após o ataque dos bestantes.", dailyDead, events); }
+    });
+  }
+  else if (globalEvent === "INCENDIO") {
+    txtGev = "INCÊNDIO FLORESTAL: Os Idealizadores colocaram fogo nas bordas da arena! Todos estão sendo forçados a correr para o centro, reduzindo os esconderijos.";
+    tagGev = "Fogo na Arena"; globalEventDaysLeft--;
+    alv.forEach(function(t) {
+      t.thirst = clamp(t.thirst - 20, 0, 100);
+      if(t.courage < 40) checkDeath(t, 30, "Foi encurralado pelas chamas e morreu por asfixia com a fumaça.", dailyDead, events);
+    });
+  }
+  else if (globalEvent === "FESTA") {
+    txtGev = "O BANQUETE: O Capitólio anunciou um grande banquete na Cornucópia, com mochilas contendo exatamente o que cada um mais precisa. Quem terá a coragem de ir?";
+    tagGev = "Banquete Oficial"; globalEventDaysLeft--;
+  }
+  else if (globalEvent === "ONDA_CRISE") {
+    txtGev = "ALERTA DO CAPITÓLIO: Uma onda de interferência psico-eletrônica foi disparada sobre uma zona da arena. Os efeitos são devastadores para quem foi atingido!";
+    tagGev = "Onda de Crise"; globalEventDaysLeft--;
+    applyOndaCrise(events, aliveList());
+  }
+
+  // ================= 2. TIMERS E BIOLOGIA =================
+  tributes.forEach(function(t){
+    if(!t.alive || t.escaped) return;
+    t.crisisGlow = false;
+
+    if(t.supremeIntelDays > 0) { t.supremeIntelDays--; t.crisisGlow = true; if(t.supremeIntelDays === 0) t.intel = clamp(t.intel, 1, 100); }
+    if(t.supremeStrengthDays > 0) { t.supremeStrengthDays--; t.crisisGlow = true; if(t.supremeStrengthDays === 0) t.strength = clamp(t.strength, 1, 100); }
+    if(t.supremeCourageDays > 0) { t.supremeCourageDays--; t.crisisGlow = true; if(t.supremeCourageDays === 0) t.courage = clamp(t.courage, 1, 100); }
+    if(t.meteorBuffDays > 0) { t.meteorBuffDays--; if(t.meteorBuffDays === 0) { t.strength = clamp(t.strength - 30, 1, 100); } }
+
+    if (t.hunger <= 0) checkDeath(t, 20, "Faleceu devido à subnutrição severa crônica.", dailyDead, events);
+    if (t.thirst <= 0) checkDeath(t, 25, "Faleceu por desidratação crítica nas entranhas da mata.", dailyDead, events);
+
+    t.hunger = clamp(t.hunger - ri(5, 10), 0, 100);
+    t.thirst = clamp(t.thirst - ri(7, 12), 0, 100);
+  });
+
+  alv = aliveList();
+  var processedIds = {};
+
+  // ================= 3. POOL PRINCIPAL DE AÇÕES =================
+  for(var i=0; i<alv.length; i++){
+    var t = alv[i];
+    if(processedIds[t.id] || !t.alive || t.escaped) continue;
+
+    // --- RECUPERAÇÃO URGENTE (1x por pessoa) ---
+    if (t.health < 30 && !t.urgentRecoveryUsed) {
+      t.urgentRecoveryUsed = true;
+      t.health = clamp(t.health + ri(15, 30), 0, 100);
+      events.push({ id:[t.id], type:"normal", text: t.name + " estava à beira da morte e passou o dia todo escondido nas sombras curando seus ferimentos graves desesperadamente (+Vida). (Recuperação Urgente usada — não poderá ser usada novamente!)", status: "Recuperação Urgente" });
+      processedIds[t.id] = true; continue;
+    }
+    // Se saúde crítica mas já usou a Recuperação Urgente, não faz essa ação especial
+    if (t.health < 20) {
+      // Está em risco mas não pode usar recuperação — continua com o pool normal
+    }
+
+    if (t.hunger <= 35 || t.thirst <= 35) {
+      t.hunger = 100; t.thirst = 100;
+      events.push({ id:[t.id], type:"normal", text: t.name + " estava sucumbindo à fome/sede e gastou todo seu foco buscando água barrenta e raízes, saciando suas necessidades totalmente (+Fome/Sede).", status: "Instinto de Sobrevivência" });
+      processedIds[t.id] = true; continue;
+    }
+
+    // CHANCE AUMENTADA de eventos raros: roll de 1-12 (era 1-15)
+    var roll = ri(1, 12);
+
+    // Psicopatas forçam rolagens de ataque mais frequentemente
+    if (t.personality === 'Psicopata' && ri(1, 100) <= 45) roll = ri(1, 3);
+    // Trainers: muito mais chance de treino
+    if (t.personality === 'Trainer' && ri(1, 100) <= 55) roll = ri(7, 8);
+
+    if (currentDay === 1) { var bloodbathActions = [1, 2, 3, 4, 4, 4, 6, 9]; roll = bloodbathActions[ri(0, bloodbathActions.length - 1)]; }
+    else if (globalEvent === "FESTA") { var feastActions = [1, 2, 3, 4, 4, 6, 9]; roll = feastActions[ri(0, feastActions.length - 1)]; }
+
+    var other = null;
+    var validOthers = alv.filter(function(o){ return o.id !== t.id && !processedIds[o.id]; });
+    if(validOthers.length > 0) other = validOthers[ri(0, validOthers.length-1)];
+
+    // === EVENTO RARO: PLANO DE FUGA (roll 11-12, ~16.6% chance, requer alv >= 3) ===
+    if (roll >= 11 && other && alv.length >= 3 && !escapePlanPending && currentDay > 2) {
+      tryProposarFuga(alv, events);
+      processedIds[t.id] = true;
+      if(other) processedIds[other.id] = true;
+      continue;
+    }
+
+    // 1 a 3. ATAQUES COM ARMAS ESPECÍFICAS
+    if (roll >= 1 && roll <= 3 && other) {
+      var evadeChance = other.intel / 200;
+      if(other.personality === 'Esperto') evadeChance += 0.2;
+      if(Math.random() < evadeChance) {
+        events.push({ id:[t.id, other.id], type:"normal", text: "FALHA E ESQUIVA: " + t.name + " tentou emboscar de surpresa, mas a alta Inteligência de " + other.name + " permitiu prever e esquivar perfeitamente do ataque! (+10 Coragem p/ Alvo)", status: "Esquiva Perfeita" });
+        other.courage = clamp(other.courage + 10, 1, 100);
+        checkStatMax(other, 'courage', events);
+        processedIds[t.id] = true; processedIds[other.id] = true; continue;
+      }
+
+      if (t.weapon) {
+        var failChance = 0.20;
+        if (t.weapon === 'Arma de Fogo' || t.weapon === 'Tridente' || t.weapon === 'Besta de Caça') failChance = 0.30;
+        if (Math.random() < failChance) {
+          var msg = "FALHA DA ARMA: " + t.name + " atacou furiosamente com seu(a) " + t.weapon + ", mas a arma falhou/engasgou no momento crucial!";
+          if (Math.random() < 0.4) { msg += " Pior, a arma quebrou no processo e se perdeu!"; t.weapon = null; }
+          events.push({ id:[t.id, other.id], type:"normal", text: msg, status: "Falha Miserável" });
+          processedIds[t.id] = true; processedIds[other.id] = true; continue;
+        }
+      }
+
+      if (t.weapon === "Faca") {
+        var blocked = processCounterAttack(t, other, 100, "Faca", dailyDead, events);
+        if (!blocked) {
+          events.push({ id:[t.id, other.id], type:"bad", text: "ATAQUE BEM SUCEDIDO: " + t.name + " saltou desferindo um golpe veloz e certeiro com sua Faca no peito de " + other.name + ".", status: "Investida Cortante" });
+          var res = checkDeath(other, 80, "Recebeu um golpe de faca desferido por " + t.name + ".", dailyDead, events, t);
+          if(!res) { other.strength = clamp(other.strength + 10, 0, 100); checkStatMax(other, 'strength', events); }
+        }
+      }
+      else if (t.weapon === "Arco e Flecha" || t.weapon === "Besta de Caça") {
+        var blocked = processCounterAttack(t, other, 100, t.weapon, dailyDead, events);
+        if (!blocked) {
+          events.push({ id:[t.id, other.id], type:"bad", text: "DISPARO EFETUADO: Escondido, " + t.name + " mirou cuidadosamente e disparou com seu " + t.weapon + " contra " + other.name + "!", status: "Fogo à Distância" });
+          checkDeath(other, 100, "Alvejado fatalmente por um projétil atirado por " + t.name + ".", dailyDead, events, t);
+        }
+      }
+      else if (t.weapon === "Tridente") {
+        var blocked = processCounterAttack(t, other, 100, "Tridente", dailyDead, events);
+        if (!blocked) {
+          events.push({ id:[t.id, other.id], type:"bad", text: "ATAQUE BRUTAL: Com fúria nos olhos, " + t.name + " arremessou o Tridente diretamente contra o corpo de " + other.name + ".", status: "Golpe de Tridente" });
+          checkDeath(other, 95, "Foi empalado pelo tridente de " + t.name + ".", dailyDead, events, t);
+        }
+      }
+      else { roll = 6; }
+      if(roll <= 3) { processedIds[t.id] = true; if(other && !processedIds[other.id]) processedIds[other.id] = true; continue; }
+    }
+
+    // 4. COLETA DE ITENS
+    if (roll === 4) {
+      if (!t.weapon || t.weapon === "Graveto Afiado" || currentDay === 1 || globalEvent === "FESTA") {
+        var wepPool = ["Martelo", "Bomba Suicida", "Faca", "Graveto Afiado", "Arma de Fogo", "Arco e Flecha", "Tridente", "Mochila de Suprimentos", "Besta de Caça"];
+        var w = wepPool[ri(0, wepPool.length - 1)];
+        if (w === "Mochila de Suprimentos") {
+          t.health = clamp(t.health + 40, 0, 100); t.hunger = 100; t.thirst = 100;
+          events.push({ id:[t.id], type:"normal", text: t.name + " encontrou uma Mochila de Suprimentos! Curou ferimentos e encheu a barriga (+Vida/Fome).", status: "Cura Total" });
+        } else {
+          t.weapon = w;
+          events.push({ id:[t.id], type:"normal", text: t.name + " vasculhou a mata e equipou uma nova arma letal: " + w + "!", status: "Novo Equipamento" });
+        }
+      }
+      processedIds[t.id] = true; continue;
+    }
+
+    // 5. SOBREVIVÊNCIA NATURAL
+    if (roll === 5) {
+      t.hunger = clamp(t.hunger + 40, 0, 100); t.thirst = clamp(t.thirst + 40, 0, 100); t.intel = clamp(t.intel + 5, 0, 100);
+      checkStatMax(t, 'intel', events);
+      events.push({ id:[t.id], type:"normal", text: t.name + " passou o dia caçando com precisão e purificando água barrenta com iodo. (+5 Intel)", status: "Rotina na Selva" });
+      processedIds[t.id] = true; continue;
+    }
+
+    // 6. COMBATE DESARMADO
+    if (roll === 6 && other) {
+      t.hunger = clamp(t.hunger - 10, 0, 100);
+      var blocked = processCounterAttack(t, other, 50, "Mãos Nuas", dailyDead, events);
+      if (!blocked) {
+        events.push({ id:[t.id, other.id], type:"bad", text: "ESPANCO: " + t.name + " pulou sobre " + other.name + " desferindo uma sequência agressiva de socos!", status: "Combate Corporal" });
+        var dmg = ri(20, 50) + Math.floor(t.strength / 3);
+        checkDeath(other, dmg, "Foi espancado até a inconsciência por " + t.name + ".", dailyDead, events, t);
+      }
+      processedIds[t.id] = true; if(other) processedIds[other.id] = true; continue;
+    }
+
+    // 7. TREINO (INTELIGÊNCIA)
+    if (roll === 7) {
+      var intelGain = t.personality === 'Trainer' ? ri(15,25) : 15;
+      t.intel = clamp(t.intel + intelGain, 0, 100);
+      checkStatMax(t, 'intel', events);
+      var trainerBonus = t.personality === 'Trainer' ? ' (Trainer: bônus extra de foco!)' : '';
+      events.push({ id:[t.id], type:"normal", text: t.name + " subiu silenciosamente até as copas mais altas para mapear a arena meticulosamente. (+" + intelGain + " Intel)" + trainerBonus, status: t.personality === 'Trainer' ? "Treinamento Tático" : "Intelecto Superior" });
+      processedIds[t.id] = true; continue;
+    }
+
+    // 8. TREINO (FORÇA / CORAGEM / SAÚDE)
+    if (roll === 8) {
+      var trainRoll = ri(1, 3);
+      // Trainers têm mais chance de ganhar stats de treino altos
+      var statGain = t.personality === 'Trainer' ? ri(18, 30) : 15;
+      var trainerTxt = t.personality === 'Trainer' ? ' O regime de treino do Trainer extrai o máximo do corpo!' : '';
+
+      if(trainRoll === 1){
+        t.strength = clamp(t.strength + statGain, 0, 100);
+        checkStatMax(t, 'strength', events);
+        events.push({ id:[t.id], type:"normal", text: t.name + " ergueu rochas pesadas durante a tarde inteira para calejamento muscular brutal. (+" + statGain + " Força)" + trainerTxt, status: t.personality === 'Trainer' ? "Regime Extremo" : "Treinamento Físico" });
+      } else if(trainRoll === 2) {
+        t.courage = clamp(t.courage + statGain, 0, 100);
+        checkStatMax(t, 'courage', events);
+        events.push({ id:[t.id], type:"normal", text: t.name + " mediou em cima de uma pedra alta, confrontando seus medos internos e saindo mais resoluto que nunca. (+" + statGain + " Coragem)" + trainerTxt, status: t.personality === 'Trainer' ? "Fortalecimento Mental" : "Meditação Guerreira" });
+      } else {
+        t.health = clamp(t.health + 30, 0, 100); t.thirst = 100;
+        events.push({ id:[t.id], type:"normal", text: "UM PRESENTE! O carisma de " + t.name + " atraiu um Patrocinador do Capitólio que lhe enviou pomada curativa por paraquedas. (+30 Vida)", status: "Patrocínio" });
+      }
+      processedIds[t.id] = true; continue;
+    }
+
+    // 9. ARMADILHAS
+    if (roll === 9 && other) {
+      var trapEvadeChance = other.intel / 150;
+      if(other.personality === 'Esperto') trapEvadeChance += 0.2;
+      if(Math.random() < trapEvadeChance) {
+        events.push({ id:[t.id, other.id], type:"normal", text: "ARMADILHA EVITADA: " + t.name + " montou uma tocaia elaborada, mas " + other.name + " notou os fios disfarçados a tempo e escapou ileso! (+10 Intel p/ Vítima)", status: "Astúcia" });
+        other.intel = clamp(other.intel + 10, 1, 100);
+        checkStatMax(other, 'intel', events);
+      } else {
+        events.push({ id:[t.id, other.id], type:"bad", text: "ARMADILHA LETAL: " + t.name + " montou uma armadilha nas folhagens. " + other.name + " caminhou desatento e foi içado violentamente pelas pernas!", status: "Caiu na Armadilha" });
+        checkDeath(other, ri(35, 75), "Foi triturado por uma armadilha mecânica projetada por " + t.name + ".", dailyDead, events, t);
+      }
+      processedIds[t.id] = true; processedIds[other.id] = true; continue;
+    }
+
+    // 10. LUTO / NEUTRALO
+    var partnerId = (t.id % 2 === 0) ? t.id + 1 : t.id - 1;
+    var partner = tributes[partnerId];
+
+    if (!partner.alive && !partner.escaped && !t.grievedForPartner) {
+      t.strength = clamp(t.strength + 15, 0, 100);
+      t.insanity = clamp(t.insanity + 30, 0, 100);
+      checkStatMax(t, 'strength', events);
+      events.push({ id:[t.id], type:"crisis", text: t.name + " chorou amargamente a perda oficial de seu parceiro de distrito, quebrando seu psicológico mas transformando o luto em fúria homicida (+15 Força, +30 Insanidade).", status: "Luto Sombrio" });
+      t.grievedForPartner = true;
+      processedIds[t.id] = true; continue;
+    }
+
+    t.courage = clamp(t.courage + 12, 0, 100);
+    checkStatMax(t, 'courage', events);
+    var randomNeutralTxt = [
+      t.name + " lavou o rosto nas margens lamacentas, camuflando a pele com terra preta e blindando sua mente. (+12 Coragem)",
+      t.name + " se abrigou sob uma grande rocha, afiando suas ferramentas improvisadas com uma pedra e focando na vitória. (+12 Coragem)",
+      t.name + " escutou o som dos canhões à distância e fez um juramento silencioso de vencer custe o que custar. (+12 Coragem)"
+    ];
+    events.push({ id:[t.id], type:"normal", text: randomNeutralTxt[ri(0, randomNeutralTxt.length - 1)], status: "Sobrevivência" });
+    processedIds[t.id] = true;
+  }
+
+  return { day: currentDay, gev: { name: tagGev, text: txtGev }, events: events, dead: dailyDead };
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function handleNextDayClick(){
+  var data = generateNextDayDynamic();
+  var con = document.getElementById('simcontent');
+  if(!data) { renderVictor(con); return; }
+
+  var block = document.createElement('div'); block.className = 'dayblock';
+  var evHTML = '';
+
+  data.events.forEach(function(e){
+    var cls = '';
+    if(e.type === 'death') cls = 'eddeath';
+    else if(e.type === 'bad') cls = 'edbad';
+    else if(e.type === 'crisis') cls = 'edcrisis';
+    else if(e.type === 'edescape') cls = 'edescape';
+
+    var picsHTML = '<div class="ev-pics">';
+    e.id.forEach(function(pId){
+      var t = tributes[pId]; if(!t) return;
+      var ph = t.photo ? '<img src="'+t.photo+'">' : '<div class="tphd">'+t.name[0]+'</div>';
+      var dColor = DISTCOLORS[t.district];
+      var glowClass = t.crisisGlow ? 'glow-crisis' : (t.escaped ? 'glow-escape' : '');
+      picsHTML += '<div class="ev-pcard">'
+        + getTooltipHTML(t)
+        +'<div class="ev-pw '+glowClass+'" style="background-color:'+dColor+'">'+ph+'</div>'
+        +'<div class="pname">'+t.name+'</div>'
+        +'</div>';
+    });
+    picsHTML += '</div>';
+
+    var statusCls = (e.type === 'edescape') ? 'v-status escape-st' : (e.type === 'crisis' ? 'v-status crisis-st' : 'v-status');
+    var statusDisplay = e.status ? '<span class="'+statusCls+'">' + e.status + '</span>' : '';
+    evHTML += '<div class="evitem '+cls+'">' + picsHTML + '<div class="evtxt">' + e.text + statusDisplay + '</div></div>';
+  });
+
+  block.innerHTML = '<div class="dayhdr"><span class="daynum">Dia '+data.day+'</span><div class="daysep"></div><span class="dayevtname">'+data.gev.name+'</span></div><div class="gevt"><span class="gstatus">Eventos da Arena</span>'+data.gev.text+'</div><div class="evlist">'+evHTML+'</div>';
+  con.innerHTML = ''; con.appendChild(block);
+  window.scrollTo({top:0, behavior:'smooth'});
+
+  if(data.dead.length > 0){
+    var bar = document.createElement('div'); bar.className = 'dbar';
+    bar.innerHTML = data.dead.length + ' disparo(s) de canhão ecoou(aram) nos céus, marcando o luto oficial em Panem.';
+    con.appendChild(bar);
+  }
+
+  // Fugitivos
+  if(escapedHistory.length > 0){
+    var escBlock = document.createElement('div'); escBlock.className = 'escapedblock';
+    var escNames = escapedHistory.map(function(t){ return t.name; }).join(' & ');
+    escBlock.innerHTML = '<h3>🏃 Fugitivos da Arena</h3><p style="color:#90e0ef;">'+escNames+' abandonaram os Jogos. O Capitólio furioso aumenta a dificuldade para os restantes.</p>';
+    con.appendChild(escBlock);
+  }
+
+  if(data.day % 2 === 0 && deadHistory.length > 0){
+    var mem = document.createElement('div'); mem.className = 'memoriam';
+    var mhtml = deadHistory.map(function(t){
+      var mph = t.photo ? '<img src="'+t.photo+'">' : '<div class="memphi">'+t.name[0]+'</div>';
+      return '<div class="mementry"><div class="mphi-w" style="background-color:'+DISTCOLORS[t.district]+'">'+mph+'</div><div class="memname">'+t.name+'</div><div class="memday">Dia '+t.dayDied+'</div></div>';
+    }).join('');
+    mem.innerHTML = '<div class="sec-title" style="font-size:1rem; margin-bottom:10px;">In Memoriam — Holograma dos Falecidos</div><div class="memgrid">'+mhtml+'</div>';
+    con.appendChild(mem);
+  }
+
+  var a = aliveList().length; var d = 24 - a - escapedHistory.length;
+  var escTxt = escapedHistory.length > 0 ? ' — <strong style="color:#00b4d8;">'+escapedHistory.length+' fugitivo(s)</strong>' : '';
+  document.getElementById('alivebar').innerHTML = '<strong>'+a+'</strong> guerreiros restantes — <strong>'+d+'</strong> eliminados' + escTxt;
+
+  var bwrap = document.createElement('div'); bwrap.className = 'nextwrap';
+  bwrap.innerHTML = (a <= 1) ? '<button class="btnnext" id="btnnext">Ver o Campeão</button>' : '<button class="btnnext" id="btnnext">Gerar Turno do Próximo Dia</button>';
+  con.appendChild(bwrap);
+
+  document.getElementById('btnnext').onclick = handleNextDayClick;
+}
+
+document.getElementById('btnstart').onclick=function(){
+  document.getElementById('s-reaping').style.display='none';
+  document.getElementById('s-sim').style.display='block';
+  var a = aliveList().length;
+  document.getElementById('alivebar').innerHTML = '<strong>'+a+'</strong> guerreiros restantes — <strong>0</strong> eliminados';
+  handleNextDayClick();
+};
+
+function renderVictor(con){
+  var alv=aliveList();
+  if(!alv.length){
+    var finalMsg = escapedHistory.length > 0
+      ? 'Os últimos combatentes caíram. Panem chora a falta de um Vitorioso oficial, mas ' + escapedHistory.length + ' alma(s) escapou(aram) para a liberdade.'
+      : 'A brutalidade mútua da arena engoliu os últimos competidores ao mesmo tempo. Panem chora a falta de um Vitorioso.';
+    con.innerHTML='<div class="victorblock"><p class="victorname">Nenhum Sobrevivente</p><p class="victorquote">'+finalMsg+'</p><button class="btnrestart" onclick="restartGame()">Gerar Novo Ano de Simulação</button></div>';
+    return;
+  }
+  var v=alv[0];
+  var ph=v.photo?'<img class="victorphoto" src="'+v.photo+'">':'<div class="victorphi">'+v.name[0]+'</div>';
+  var escFin = escapedHistory.length > 0 ? '<p style="color:#00b4d8; margin-top:16px; font-size:1rem;">⚠️ '+escapedHistory.length+' tributo(s) escapou(aram) da arena sem ser vencedor(es): '+escapedHistory.map(function(t){return t.name;}).join(', ')+'</p>' : '';
+  con.innerHTML='<div class="victorblock"><p class="sec-title">Consagrado Vitorioso</p><div class="victor-w" style="background-color:'+DISTCOLORS[v.district]+'">'+ph+'</div><h2 class="victorname">'+v.name+'</h2><p class="victordist">'+DISTRICTS[v.district]+'</p><p class="victorquote">Sobreviveu à arena com '+v.kills+' abate(s)! A verdadeira essência do Capitólio pulsa em suas veias após demonstrar instinto supremo e tática perfeita.</p>'+escFin+'<button class="btnrestart" onclick="restartGame()">Gerar Novo Ano de Simulação</button></div>';
+}
+
+function restartGame(){
+  document.getElementById('s-sim').style.display='none';
+  document.getElementById('s-reaping').style.display='block';
+  initTributes(); renderReaping();
+}
+
+initTributes();
+renderReaping();
 </script>
 </body>
 </html>
