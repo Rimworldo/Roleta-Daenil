@@ -1,945 +1,1480 @@
-<html lang="pt-br">
+<!DOCTYPE html>
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Canhão vs Escudo</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARCADE QUIZ — Minigames</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
-body { margin:0; background:#0a0e17; font-family:Arial; color:#ddd; overflow:hidden; }
-canvas { display:block; position:absolute; top:90px; left:0; }
-#ui, #ui-top { position:absolute; left:0; right:0; height:105px; background:linear-gradient(#0f1829,#1c2740); display:flex; justify-content:space-around; align-items:center; padding:0 12px; box-shadow:0 5px 20px rgba(0,0,0,0.7); }
-#ui { bottom:0; }
-#ui-top { top:0; }
-#score { position:absolute; left:92px; top:50%; transform:translateY(-50%); font-size:56px; font-weight:bold; color:#fff; text-shadow:0 0 25px #5af; z-index:100; pointer-events:none; }
-.upgrade { background:#1e2a4a; border:2px solid #4a8; border-radius:12px; padding:14px 18px; cursor:pointer; user-select:none; transition:all 0.2s; text-align:center; min-width:150px; box-shadow:0 6px 18px rgba(0,0,0,0.6); position:relative; font-size:17px; line-height:1.3; }
-.upgrade:hover:not(.locked):not(.disabled) { background:#2e3f6b; transform:scale(1.07); border-color:#6cf; }
-.upgrade.locked { background:#111820!important; border-color:#444!important; box-shadow:none; }
-.upgrade.locked::before { content:"🔒"; position:absolute; font-size:62px; color:#555; top:50%; left:50%; transform:translate(-50%,-50%); z-index:2; pointer-events:none; }
-.upgrade.locked * { visibility:hidden; }
-.upgrade.disabled { opacity:0.4; pointer-events:none; }
-.upgrade.no-money { opacity:0.45; background:#1a1a1a!important; }
-.upgrade small { display:block; font-size:14.5px; margin-top:6px; opacity:0.85; }
-#cutscene{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(10,14,23,0.95);display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:999;transition:opacity 4s;}
-#characters{display:flex;width:90%;justify-content:space-between;align-items:center;}
-.char{font-size:220px;animation:bounce 1.5s infinite alternate;}
-@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-20px)}}
-#dialogue{font-size:28px;margin:40px 0;text-align:center;max-width:80%;min-height:80px;line-height:1.4;transition:opacity 0.8s;}
-#tooltip { position:absolute; background:#2e3f6b; border:2px solid #6cf; border-radius:8px; padding:10px; max-width:300px; z-index:100; display:none; pointer-events:none; }
-#cannon-talk { 
-  position: absolute; 
-  color: #00f0ff; 
-  font-size: 22px; 
-  font-weight: bold; 
-  text-shadow: 0 0 10px #00f0ff; 
-  pointer-events: none; 
-  z-index: 50;
-}
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: #2a2a3d;
+    --accent: #f0e040;
+    --accent2: #ff4f6d;
+    --green: #4ade80;
+    --yellow: #facc15;
+    --gray: #6b7280;
+    --text: #f0f0f8;
+    --text2: #9090b0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px);
+    pointer-events: none; z-index: 9999;
+  }
+
+  /* ─── MENU ─── */
+  #menu {
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100vh; padding: 40px 20px;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, #1a1a3e 0%, var(--bg) 70%);
+  }
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(56px, 12vw, 110px);
+    line-height: 0.9; text-align: center; letter-spacing: 4px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+  }
+  .logo-sub {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px; letter-spacing: 8px; text-transform: uppercase;
+    color: var(--text2); margin-bottom: 32px;
+  }
+  .score-bar {
+    display: flex; gap: 30px; margin-bottom: 28px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 28px;
+  }
+  .score-bar span { font-size: 12px; color: var(--text2); }
+  .score-bar strong { color: var(--accent); font-size: 18px; }
+
+  /* ─── DESAFIO DIÁRIO ─── */
+  #daily-section {
+    width: 100%; max-width: 900px; margin-bottom: 28px;
+  }
+  .daily-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .daily-title {
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 3px;
+    color: var(--accent2);
+  }
+  .daily-roll-btn {
+    background: var(--accent2); color: #fff; border: none;
+    padding: 8px 20px; border-radius: 8px; cursor: pointer;
+    font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 2px;
+    transition: all 0.15s;
+  }
+  .daily-roll-btn:hover { transform: scale(1.04); box-shadow: 0 4px 16px rgba(255,79,109,0.4); }
+  .daily-challenges {
+    display: flex; gap: 12px; flex-wrap: wrap;
+  }
+  .daily-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 18px; flex: 1; min-width: 200px;
+    position: relative; overflow: hidden; transition: all 0.2s;
+  }
+  .daily-card.completed { border-color: var(--green); }
+  .daily-card.completed::after {
+    content: '✓'; position: absolute; top: 8px; right: 12px;
+    color: var(--green); font-size: 18px; font-weight: bold;
+  }
+  .daily-card-icon { font-size: 22px; margin-bottom: 6px; }
+  .daily-card-title { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 1px; color: var(--accent); }
+  .daily-card-desc { font-size: 11px; color: var(--text2); margin-top: 3px; line-height: 1.4; }
+  .daily-extra {
+    margin-top: 10px; padding: 10px 16px;
+    background: linear-gradient(90deg, rgba(240,224,64,0.08), rgba(255,79,109,0.08));
+    border: 1px solid rgba(240,224,64,0.3); border-radius: 10px;
+    font-size: 12px; color: var(--accent);
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  /* ROULETTE */
+  #roulette-overlay {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,0.85); align-items: center; justify-content: center;
+  }
+  #roulette-overlay.show { display: flex; }
+  .roulette-box {
+    background: var(--surface); border: 2px solid var(--accent);
+    border-radius: 20px; padding: 40px; text-align: center; max-width: 400px; width: 90%;
+  }
+  .roulette-title { font-family: 'Bebas Neue', sans-serif; font-size: 32px; color: var(--accent); margin-bottom: 20px; }
+  .roulette-spin {
+    font-size: 48px; margin: 20px 0; transition: all 0.15s;
+    display: block; font-family: 'Bebas Neue', sans-serif; letter-spacing: 3px;
+    color: var(--text); min-height: 60px;
+  }
+  .roulette-result { font-size: 14px; color: var(--text2); margin-top: 8px; min-height: 20px; }
+  .roulette-close {
+    margin-top: 20px; background: var(--accent); color: #000;
+    border: none; padding: 12px 28px; border-radius: 8px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 18px; cursor: pointer;
+  }
+
+  /* ─── MÚSICA PLAYER ─── */
+  #music-player {
+    width: 100%; max-width: 900px; margin-bottom: 28px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 16px 20px;
+  }
+  .music-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+  }
+  .music-title { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: var(--accent); }
+  .music-now-playing { font-size: 11px; color: var(--text2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .music-controls { display: flex; gap: 8px; align-items: center; }
+  .music-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 6px 14px; border-radius: 6px;
+    cursor: pointer; font-size: 16px; transition: all 0.15s;
+  }
+  .music-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .music-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+  .music-playlist { margin-top: 10px; }
+  .music-playlist-item {
+    display: flex; align-items: center; gap: 8px; padding: 6px 0;
+    border-bottom: 1px solid var(--border); font-size: 11px;
+  }
+  .music-playlist-item:last-child { border-bottom: none; }
+  .music-playlist-item .pl-url { flex:1; color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .music-playlist-item .pl-del { cursor: pointer; color: var(--accent2); font-size: 14px; padding: 2px 6px; }
+  .music-add-row { display: flex; gap: 8px; margin-top: 10px; }
+  .music-input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); padding: 8px 12px; border-radius: 8px;
+    font-family: 'Space Mono', monospace; font-size: 11px;
+    outline: none;
+  }
+  .music-input:focus { border-color: var(--accent); }
+  .music-add-btn {
+    background: var(--surface2); border: 1px solid var(--accent);
+    color: var(--accent); padding: 8px 16px; border-radius: 8px;
+    cursor: pointer; font-family: 'Bebas Neue', sans-serif; font-size: 15px;
+  }
+  #yt-container { display: none; }
+
+  .game-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px; max-width: 900px; width: 100%;
+  }
+  .game-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px; cursor: pointer; transition: all 0.2s;
+    position: relative; overflow: hidden;
+  }
+  .game-card::before {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(135deg, transparent 60%, rgba(240,224,64,0.04));
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .game-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 12px 40px rgba(240,224,64,0.1); }
+  .game-card:hover::before { opacity: 1; }
+  .card-icon { font-size: 36px; margin-bottom: 12px; }
+  .card-title { font-family: 'Bebas Neue', sans-serif; font-size: 26px; letter-spacing: 2px; color: var(--accent); margin-bottom: 6px; }
+  .card-desc { font-size: 11px; color: var(--text2); line-height: 1.6; }
+  .card-badge {
+    position: absolute; top: 14px; right: 14px;
+    background: var(--accent2); color: white;
+    font-size: 9px; font-family: 'Syne', sans-serif; font-weight: 700;
+    letter-spacing: 2px; padding: 3px 8px; border-radius: 20px;
+  }
+
+  /* ─── GAME SCREEN ─── */
+  #game-screen {
+    display: none; min-height: 100vh;
+    padding: 20px; flex-direction: column; align-items: center;
+  }
+  .game-header {
+    display: flex; align-items: center; justify-content: space-between;
+    width: 100%; max-width: 700px; margin-bottom: 28px;
+  }
+  .back-btn {
+    background: var(--surface); border: 1px solid var(--border);
+    color: var(--text2); padding: 8px 16px; border-radius: 8px;
+    cursor: pointer; font-family: 'Space Mono', monospace; font-size: 12px;
+    transition: all 0.15s;
+  }
+  .back-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .game-title-bar {
+    font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 3px; color: var(--accent);
+  }
+  .lives-display { font-size: 20px; letter-spacing: 2px; }
+  #game-area { width: 100%; max-width: 700px; }
+
+  /* ─── WORDLE ─── */
+  .wordle-wrap { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .wordle-hint { font-size: 12px; color: var(--text2); text-align: center; max-width: 500px; }
+  .wordle-grid { display: flex; flex-direction: column; gap: 6px; }
+  .wordle-row { display: flex; gap: 6px; }
+  .wordle-cell {
+    width: 56px; height: 56px; border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 1px;
+    border-radius: 8px; transition: all 0.3s; background: var(--surface); text-transform: uppercase;
+  }
+  .wordle-cell.active { border-color: var(--text2); }
+  .wordle-cell.correct { background: var(--green); border-color: var(--green); color: #000; animation: pop 0.3s ease; }
+  .wordle-cell.present { background: var(--yellow); border-color: var(--yellow); color: #000; animation: pop 0.3s ease; }
+  .wordle-cell.absent { background: var(--surface2); border-color: var(--surface2); color: var(--gray); animation: pop 0.3s ease; }
+  .wordle-cell.shake { animation: shake 0.4s ease; }
+  @keyframes pop { 0%{transform:scale(1)} 50%{transform:scale(1.12)} 100%{transform:scale(1)} }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-4px)} 40%,80%{transform:translateX(4px)} }
+
+  .keyboard { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .kb-row { display: flex; gap: 5px; }
+  .kb-key {
+    min-width: 36px; height: 48px; padding: 0 6px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 6px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 17px; letter-spacing: 1px;
+    cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: center;
+  }
+  .kb-key:hover { background: var(--border); }
+  .kb-key.wide { min-width: 60px; font-size: 12px; }
+  .kb-key.correct { background: var(--green); border-color: var(--green); color: #000; }
+  .kb-key.present { background: var(--yellow); border-color: var(--yellow); color: #000; }
+  .kb-key.absent { background: #2a2a2a; border-color: #2a2a2a; color: #555; }
+
+  /* ─── QUIZ ─── */
+  .quiz-wrap { display: flex; flex-direction: column; gap: 20px; }
+  .quiz-category { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--accent2); margin-bottom: -8px; }
+  .quiz-question { font-family: 'Syne', sans-serif; font-size: clamp(17px, 3vw, 22px); font-weight: 700; line-height: 1.4; color: var(--text); }
+  .quiz-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .quiz-opt {
+    background: var(--surface); border: 1px solid var(--border);
+    padding: 14px 18px; border-radius: 10px;
+    cursor: pointer; transition: all 0.15s;
+    font-size: 13px; line-height: 1.4; color: var(--text); text-align: left;
+  }
+  .quiz-opt:hover:not(.disabled) { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  .quiz-opt.correct { background: rgba(74,222,128,0.15); border-color: var(--green); color: var(--green); }
+  .quiz-opt.wrong { background: rgba(255,79,109,0.1); border-color: var(--accent2); color: var(--accent2); }
+  .quiz-opt.disabled { cursor: default; }
+  .quiz-feedback { padding: 14px 20px; border-radius: 10px; font-size: 13px; line-height: 1.5; }
+  .quiz-feedback.good { background: rgba(74,222,128,0.1); border: 1px solid var(--green); color: var(--green); }
+  .quiz-feedback.bad { background: rgba(255,79,109,0.08); border: 1px solid var(--accent2); color: var(--accent2); }
+  .next-btn {
+    background: var(--accent); color: #000; border: none; padding: 14px 32px; border-radius: 10px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px;
+    cursor: pointer; transition: all 0.15s; align-self: flex-start;
+  }
+  .next-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(240,224,64,0.3); }
+
+  /* DIFICULDADE */
+  .diff-select {
+    display: flex; gap: 12px; justify-content: center; margin-bottom: 10px;
+  }
+  .diff-btn {
+    background: var(--surface2); border: 2px solid var(--border);
+    color: var(--text2); padding: 10px 28px; border-radius: 10px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .diff-btn:hover, .diff-btn.active { border-color: var(--accent); color: var(--accent); }
+  .diff-btn.hard:hover, .diff-btn.hard.active { border-color: var(--accent2); color: var(--accent2); }
+
+  /* PROGRESS */
+  .progress-bar { width: 100%; background: var(--surface2); border-radius: 4px; height: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 4px; transition: width 0.4s ease; }
+
+  /* RESULT */
+  .result-screen { text-align: center; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .result-emoji { font-size: 64px; }
+  .result-title { font-family: 'Bebas Neue', sans-serif; font-size: 52px; letter-spacing: 3px; }
+  .result-score { font-size: 14px; color: var(--text2); }
+  .result-score strong { color: var(--accent); font-size: 36px; display: block; }
+  .play-again-btn {
+    background: transparent; border: 2px solid var(--accent);
+    color: var(--accent); padding: 14px 36px; border-radius: 10px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px;
+    cursor: pointer; transition: all 0.15s; margin-top: 10px;
+  }
+  .play-again-btn:hover { background: var(--accent); color: #000; }
+
+  /* TOAST */
+  #toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: var(--bg);
+    padding: 10px 24px; border-radius: 8px;
+    font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700;
+    opacity: 0; transition: opacity 0.3s; z-index: 1000; pointer-events: none;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+  .wordle-counter { font-size: 12px; color: var(--text2); }
+
+  /* ─── ANIMAIS ─── */
+  .animais-wrap { display:flex; flex-direction:column; gap:14px; }
+  .animais-instruction { font-size:13px; color:var(--text2); letter-spacing:1px; }
+  .animais-dica {
+    background: var(--surface2); border-left: 3px solid var(--accent);
+    padding: 12px 16px; border-radius: 0 10px 10px 0;
+    font-size: 13px; color: var(--text); line-height: 1.5;
+  }
+  .animais-dica strong { color: var(--accent); }
+  .animais-hint { font-size:11px; color:var(--gray); text-align:center; }
+  .animais-drop-zone {
+    min-height:56px; background:var(--surface); border:2px dashed var(--border);
+    border-radius:12px; padding:10px 14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+  }
+  .animais-pool { display:flex; flex-wrap:wrap; gap:8px; padding:8px 0; }
+  .a-chip, .a-drop-chip {
+    background:var(--surface2); border:1px solid var(--border);
+    padding:8px 14px; border-radius:8px; cursor:pointer;
+    font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px;
+    transition:all 0.15s; user-select:none;
+  }
+  .a-chip:hover:not(.used) { border-color:var(--accent); color:var(--accent); }
+  .a-chip.used { opacity:0.3; cursor:default; }
+  .a-drop-chip { background:var(--surface); border-color:var(--text2); cursor:pointer; transition:all 0.2s; }
+  .a-drop-chip:hover { border-color:var(--accent2); color:var(--accent2); }
+  .animais-actions { display:flex; gap:12px; align-items:center; }
 </style>
 </head>
 <body>
-<canvas id="c"></canvas>
-<div id="score">🏓0</div>
-<div id="ui-top">
-<div class="upgrade locked" id="t1"><span>Dobro Perigo<br><small id="tp1">custo: 300</small></span></div>
-<div class="upgrade locked" id="t2"><span>Raquetear<br><small id="tp2">custo: 450</small></span></div>
-<div class="upgrade locked" id="t3"><span>Mão Via Dupla<br><small id="tp3">custo: 600</small></span></div>
-<div class="upgrade locked" id="t4"><span>Bola Sortuda<br><small id="tp4">custo: 750</small></span></div>
-<div class="upgrade locked" id="t5"><span>Escudo Reforçado<br><small id="tp5">custo: 900</small></span></div>
-<div class="upgrade locked" id="t6"><span>Raquete Portátil<br><small id="tp6">custo: 1050</small></span></div>
-<div class="upgrade locked" id="t7"><span>Bolas Bem Valiosas<br><small id="tp7">custo: 1200</small></span></div>
-<div class="upgrade locked" id="t8"><span>Compactação Total<br><small id="tp8">custo: 1500</small></span></div>
-<div class="upgrade locked" id="t9"><span>Power Bolas<br><small id="tp9">custo: 1800</small></span></div>
+
+<div id="toast"></div>
+
+<!-- ROULETTE OVERLAY -->
+<div id="roulette-overlay">
+  <div class="roulette-box">
+    <div class="roulette-title">🎲 DESAFIO DIÁRIO</div>
+    <div id="roulette-spin-label" class="roulette-spin">?</div>
+    <div id="roulette-result" class="roulette-result"></div>
+    <button class="roulette-close" id="roulette-close-btn" style="display:none" onclick="closeRoulette()">FECHAR</button>
+  </div>
 </div>
-<div id="ui">
-<div class="upgrade locked" id="u1"><span>Bolas Valiosas<br><small id="p1">(Aumenta em 3 o valor de bolas bloqueadas) custo: 40</small></span></div>
-<div class="upgrade locked" id="u2"><span>Disparo Rapido<br><small id="p2">(Abaixa o cooldown de bolas disparadas por segundo) custo: 60</small></span></div>
-<div class="upgrade locked" id="u3"><span>Dobro Desastre<br><small id="p3">(A cada tiro sai uma bola extra de canhões) custo: 120</small></span></div>
-<div class="upgrade locked" id="u4"><span>Maior Defesa<br><small id="p4">(Aumenta em 15% o tamanho e colisão de sua raquete) custo: 80</small></span></div>
-<div class="upgrade locked" id="u5"><span>Escudo Durável<br><small id="p5">(Aumenta a vida máxima do seu escudo para bloquear mais bolas) custo: 100</small></span></div>
-<div class="upgrade locked" id="u6"><span>Quantidade Maxima De Bolas<br><small id="p6">(Aumenta em 50 a quantidade maxima de bolas na tela) custo: 200</small></span></div>
+
+<!-- YT hidden iframe -->
+<div id="yt-container">
+  <iframe id="yt-player" width="1" height="1" frameborder="0" allow="autoplay" allowfullscreen></iframe>
 </div>
-<iframe id="yt" width="1" height="1" src="https://www.youtube.com/embed/Nf8FCLT8S6A?enablejsapi=1&autoplay=0&controls=0&modestbranding=1&showinfo=0&rel=0" frameborder="0" allow="autoplay" style="position:absolute;opacity:0;pointer-events:none;"></iframe>
-<div id="cutscene">
-<div id="characters">
-<div class="char">👺</div>
-<div class="char">🏌️‍♂️</div>
+
+<!-- ══════════ MENU ══════════ -->
+<div id="menu">
+  <div class="logo">ARCADE<br>QUIZ</div>
+  <div class="logo-sub">Minigames Collection</div>
+
+  <div class="score-bar">
+    <div><span>Pontuação Total</span><br><strong id="total-score">0</strong></div>
+    <div><span>Jogos Jogados</span><br><strong id="games-played">0</strong></div>
+    <div><span>Vitórias</span><br><strong id="total-wins">0</strong></div>
+  </div>
+
+  <!-- DESAFIO DIÁRIO -->
+  <div id="daily-section">
+    <div class="daily-header">
+      <div class="daily-title">⚡ DESAFIO DIÁRIO</div>
+      <button class="daily-roll-btn" onclick="rollDailyChallenges()">🎲 ROLAR ROLETA</button>
+    </div>
+    <div class="daily-challenges" id="daily-challenges">
+      <div style="font-size:12px;color:var(--text2);padding:14px">Clique em "Rolar Roleta" para gerar seus desafios do dia!</div>
+    </div>
+    <div id="daily-extra" style="display:none" class="daily-extra"></div>
+  </div>
+
+  <!-- MÚSICA PLAYER -->
+  <div id="music-player">
+    <div class="music-header">
+      <div class="music-title">🎵 MÚSICA</div>
+      <div class="music-now-playing" id="music-now-playing">Nenhuma música tocando</div>
+      <div class="music-controls">
+        <button class="music-btn" id="music-play-btn" onclick="toggleMusic()">▶</button>
+        <button class="music-btn" onclick="nextTrack()">⏭</button>
+        <button class="music-btn" onclick="prevTrack()">⏮</button>
+      </div>
+    </div>
+    <div class="music-playlist" id="music-playlist"></div>
+    <div class="music-add-row">
+      <input class="music-input" id="music-url-input" placeholder="Cole um link do YouTube aqui..." />
+      <button class="music-add-btn" onclick="addTrack()">+ ADD</button>
+    </div>
+  </div>
+
+  <div class="game-grid">
+    <div class="game-card" onclick="startGame('wordle')">
+      <div class="card-icon">🔤</div>
+      <div class="card-title">Wordle BR</div>
+      <div class="card-desc">Adivinhe a palavra em 5 tentativas. Verde = posição certa, Amarelo = letra existe.</div>
+      <div class="card-badge">CLÁSSICO</div>
+    </div>
+    <div class="game-card" onclick="startGame('minecraft')">
+      <div class="card-icon">⛏️</div>
+      <div class="card-title">Quiz Minecraft</div>
+      <div class="card-desc">Receitas, mobs, biomas, itens raros. Você realmente conhece o jogo?</div>
+    </div>
+    <div class="game-card" onclick="startGame('filmes')">
+      <div class="card-icon">🎬</div>
+      <div class="card-title">Quiz Filmes</div>
+      <div class="card-desc">Marvel, DC, clássicos, animações, Oscar. De Titanic a Avengers.</div>
+    </div>
+    <div class="game-card" onclick="startGame('animais')">
+      <div class="card-icon">🐆</div>
+      <div class="card-title">Animais BR</div>
+      <div class="card-desc">Monte o nome dos animais brasileiros clicando nas peças na ordem certa. Cuidado com as falsas!</div>
+      <div class="card-badge">PUZZLE</div>
+    </div>
+    <div class="game-card" onclick="startGame('games')">
+      <div class="card-icon">🎮</div>
+      <div class="card-title">Quiz Games</div>
+      <div class="card-desc">Mario, GTA, Zelda, LoL, Fortnite, Among Us e os maiores clássicos.</div>
+    </div>
+    <div class="game-card" onclick="startGame('musica')">
+      <div class="card-icon">🎵</div>
+      <div class="card-title">Quiz Música</div>
+      <div class="card-desc">Bandas, álbuns, letras, artistas BR e internacionais. Pop, rock, funk, rap.</div>
+    </div>
+    <div class="game-card" onclick="startGame('historia')">
+      <div class="card-icon">🧮</div>
+      <div class="card-title">Matemática</div>
+      <div class="card-desc">Escolha entre Médio (básico/intermediário) ou Difícil (cálculo, logaritmos). Desafie-se!</div>
+    </div>
+    <div class="game-card" onclick="startGame('ciencia')">
+      <div class="card-icon">🔬</div>
+      <div class="card-title">Ciência & Curiosidades</div>
+      <div class="card-desc">Física, biologia, astronomia, tecnologia e fatos que vão te surpreender.</div>
+    </div>
+  </div>
 </div>
-<div id="dialogue"></div>
+
+<!-- ══════════ GAME ══════════ -->
+<div id="game-screen">
+  <div class="game-header">
+    <button class="back-btn" onclick="goMenu()">← MENU</button>
+    <div class="game-title-bar" id="game-title">WORDLE</div>
+    <div class="lives-display" id="lives-display"></div>
+  </div>
+  <div id="game-area"></div>
 </div>
-<div id="cannon-talk"></div>
-<div id="tooltip"></div>
 
 <script>
-const canvas = document.getElementById("c");
-const ctx = canvas.getContext("2d");
-const scoreEl = document.getElementById("score");
-const cannonTalk = document.getElementById("cannon-talk");
-let W,H;
-function resize(){ W = canvas.width = innerWidth; H = canvas.height = innerHeight-210; }
-window.addEventListener("resize",resize); resize();
+// ══════════════════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════════════════
 
-const AudioContext = window.AudioContext || window.webkitAudioContext;
-const audioCtx = new AudioContext();
-
-function beep(freq,dur=0.08,vol=0.3,type='square'){
-  freq *= (0.95 + Math.random()*0.1);
-  const osc = audioCtx.createOscillator();
-  const gain = audioCtx.createGain();
-  osc.type = type;
-  osc.frequency.value = freq;
-  gain.gain.value = vol;
-  osc.connect(gain);
-  gain.connect(audioCtx.destination);
-  osc.start();
-  osc.stop(audioCtx.currentTime + dur);
-}
-
-function playPing(){ beep(1565,0.06,0.25,'sine'); }
-function playHit(){ beep(180,0.12,0.15,'sawtooth'); }
-function playShieldBreak(){ beep(120,0.18,0.2,'sawtooth'); setTimeout(()=>beep(90,0.22,0.2,'sawtooth'),80); }
-function playShieldSpawn(){ beep(320,0.09,0.22,'triangle'); }
-function playBuy(){ beep(680,0.04,0.2,'sine'); setTimeout(()=>beep(840,0.04,0.2,'sine'),40); }
-function playNoMoney(){ beep(180,0.15,0.25,'square'); setTimeout(()=>beep(140,0.15,0.25,'square'),80); }
-function playUnlock(){ beep(520,0.05,0.2,'sine'); setTimeout(()=>beep(680,0.05,0.2,'sine'),50); setTimeout(()=>beep(840,0.05,0.2,'sine'),100); }
-
-let score = 0;
-let totalBallsRebounded = 0;
-let totalPointsSpent = 0;
-let mouseX = W/2;
-let mouseY = H/2;
-let ballValueLevel = 0;
-let fireRateLevel = 0;
-let ballsPerShotLevel = 0;
-let paddleSizeLevel = 0;
-let shieldLevel = 0;
-let maxBallsLevel = 0;
-let maxShieldBlocks = 5 + shieldLevel*3;
-let shieldBlocks = maxShieldBlocks;
-let shieldActive = true;
-let shieldCooldownTime = 0;
-let cannonY = H/2;
-let cannonY2 = H/2;
-let cannonPhase = 0;
-let paralyzedUntil = 0;
-let lastRaquetear = 0;
-let helperRebounds = 0;
-let helperMaxRebounds = 10;
-let helperActive = false;
-let helperCooldownTime = 0;
-let helperY = H/2;
-let doubleDangerBought = false;
-let raquetearBought = false;
-let maoBought = false;
-let luckyBought = false;
-let reforcadoBought = false;
-let raquetePortatilBought = false;
-let bolasBemValiosasBought = false;
-let compactacaoUniversalBought = false;
-let powerBolasBought = false;
-let charge = 0;
-let ballMultiplier = 1;
-let powerUpActive = false;
-let powerUpEndTime = 0;
-let powerUpType = '';
-let maxBalls = 100;
-let gamePhase = 0;
-let pauseStart = 0;
-let bossStartTime = 0;
-let bossMode = false;
-
-const topCosts = [300,450,600,750,900,1050,1200,1500,1800];
-
-document.getElementById("t1").onclick=()=>{if(score>=topCosts[0]&&!doubleDangerBought){totalPointsSpent+=topCosts[0];score-=topCosts[0]; doubleDangerBought=true; document.getElementById("t1").classList.add("disabled"); playBuy();}else{playNoMoney();}};
-document.getElementById("t2").onclick=()=>{if(score>=topCosts[1]&&!raquetearBought){totalPointsSpent+=topCosts[1];score-=topCosts[1]; raquetearBought=true; document.getElementById("t2").classList.add("disabled"); playBuy();}else{playNoMoney();}};
-document.getElementById("t3").onclick=()=>{if(score>=topCosts[2]&&!maoBought){totalPointsSpent+=topCosts[2];score-=topCosts[2]; maoBought=true; helperActive=true; document.getElementById("t3").classList.add("disabled"); playBuy();}else{playNoMoney();}};
-document.getElementById("t4").onclick=()=>{if(score>=topCosts[3]&&!luckyBought){totalPointsSpent+=topCosts[3];score-=topCosts[3]; luckyBought=true; document.getElementById("t4").classList.add("disabled"); playBuy();}else{playNoMoney();}};
-document.getElementById("t5").onclick=()=>{if(score>=topCosts[4]&&!reforcadoBought){totalPointsSpent+=topCosts[4];score-=topCosts[4]; reforcadoBought=true; document.getElementById("t5").classList.add("disabled"); playBuy();}else{playNoMoney();}};
-document.getElementById("t6").onclick=()=>{if(score>=topCosts[5]&&!raquetePortatilBought){totalPointsSpent+=topCosts[5];score-=topCosts[5]; raquetePortatilBought=true; document.getElementById("t6").classList.add("disabled"); playBuy();}else{playNoMoney();}};
-document.getElementById("t7").onclick=()=>{if(score>=topCosts[6]&&!bolasBemValiosasBought){totalPointsSpent+=topCosts[6];score-=topCosts[6]; bolasBemValiosasBought=true; ballMultiplier*=2; document.getElementById("t7").classList.add("disabled"); playBuy();}else{playNoMoney();}};
-document.getElementById("t8").onclick=()=>{if(score>=topCosts[7]&&!compactacaoUniversalBought){totalPointsSpent+=topCosts[7];score-=topCosts[7]; compactacaoUniversalBought=true; fireRateLevel=Math.floor(fireRateLevel/2); ballsPerShotLevel=Math.floor(ballsPerShotLevel/2); ballMultiplier*=2; document.getElementById("t8").classList.add("disabled"); playBuy();}else{playNoMoney();}};
-document.getElementById("t9").onclick=()=>{if(score>=topCosts[8]&&!powerBolasBought){totalPointsSpent+=topCosts[8];score-=topCosts[8]; powerBolasBought=true; document.getElementById("t9").classList.add("disabled"); playBuy();}else{playNoMoney();}};
-
-let costs = [40,60,120,80,100,200];
-function updateCosts(){
-  document.getElementById("p1").textContent = `(Aumenta em 3 o valor de bolas bloqueadas) custo: ${costs[0]}`;
-  document.getElementById("p2").textContent = `(Abaixa o cooldown de bolas disparadas por segundo) custo: ${costs[1]}`;
-  document.getElementById("p3").textContent = `(A cada tiro sai uma bola extra de canhões) custo: ${costs[2]}`;
-  document.getElementById("p4").textContent = `(Aumenta em 15% o tamanho e colisão de sua raquete) custo: ${costs[3]}`;
-  document.getElementById("p5").textContent = `(Aumenta a vida máxima do escudo para bloquear mais bolas) custo: ${costs[4]}`;
-  document.getElementById("p6").textContent = `(Aumenta em 50 a quantidade maxima de bolas na tela) custo: ${costs[5]}`;
-}
-updateCosts();
-
-document.getElementById("u1").onclick=()=>{if(score>=costs[0]){totalPointsSpent+=costs[0];score-=costs[0]; ballValueLevel++; costs[0]=Math.round(costs[0]*1.3); updateCosts(); playBuy();}else{playNoMoney();}};
-document.getElementById("u2").onclick=()=>{if(score>=costs[1]){totalPointsSpent+=costs[1];score-=costs[1]; fireRateLevel++; costs[1]=Math.round(costs[1]*1.25); updateCosts(); playBuy();}else{playNoMoney();}};
-document.getElementById("u3").onclick=()=>{if(score>=costs[2]){totalPointsSpent+=costs[2];score-=costs[2]; ballsPerShotLevel++; costs[2]=Math.round(costs[2]*1.4); updateCosts(); playBuy();}else{playNoMoney();}};
-document.getElementById("u4").onclick=()=>{if(score>=costs[3]){totalPointsSpent+=costs[3];score-=costs[3]; paddleSizeLevel++; costs[3]=Math.round(costs[3]*1.3); updateCosts(); playBuy();}else{playNoMoney();}};
-document.getElementById("u5").onclick=()=>{if(score>=costs[4]){totalPointsSpent+=costs[4];score-=costs[4]; shieldLevel++; costs[4]=Math.round(costs[4]*1.35); updateCosts(); maxShieldBlocks=5+shieldLevel*3; helperMaxRebounds=10+shieldLevel*3; if(shieldActive)shieldBlocks=maxShieldBlocks; playBuy(); playShieldSpawn();}else{playNoMoney();}};
-document.getElementById("u6").onclick=()=>{if(score>=costs[5]){totalPointsSpent+=costs[5];score-=costs[5]; maxBallsLevel++; maxBalls=100+maxBallsLevel*50; costs[5]=Math.round(costs[5]*1.3); updateCosts(); playBuy();}else{playNoMoney();}};
-
-let particles = [];
-class Particle {
-  constructor(x,y,vx,vy,col,size=3){ this.x=x; this.y=y; this.vx=vx; this.vy=vy; this.col=col; this.life=70+Math.random()*60; this.size=size; }
-  update(){ this.x+=this.vx; this.y+=this.vy; this.vy+=0.1; this.life--; }
-  draw(){ ctx.globalAlpha = this.life/100; ctx.fillStyle = this.col; ctx.fillRect(this.x-this.size/2,this.y-this.size/2,this.size,this.size); ctx.globalAlpha = 1; }
-}
-
-let scoreTexts = [];
-class ScoreText {
-  constructor(x,y,text){ this.x=x; this.y=y; this.text=text; this.life=120; }
-  update(){ this.y-=0.5; this.life--; }
-  draw(){ ctx.globalAlpha = this.life/120; ctx.font="16px Arial"; ctx.fillStyle="#fff"; ctx.textAlign="center"; ctx.fillText(this.text,this.x,this.y); ctx.globalAlpha=1; }
-}
-
-let balls = [];
-class Ball {
-  constructor(y, customAngle=null){
-    this.x = W-98; this.y = y; this.r = 11; this.trail = []; this.angle = 0; this.rotSpeed = (Math.random()-0.5)*0.2;
-    let speed = 3.8 + fireRateLevel*0.15;
-    this.value = (3 + ballValueLevel*3) * ballMultiplier;
-    if(luckyBought && Math.random()<0.05){ this.value *=10; speed *=2; this.emoji = '📀'; this.isLuckyBall = true; }
-    else if(powerBolasBought && Math.random()<0.010){ this.emoji = '☢'; this.isPowerBall = true; this.r = 22; this.color = '#000'; }
-    else { const emojis = ['⚽','⚾','🏀']; this.emoji = emojis[Math.floor(Math.random()*emojis.length)]; }
-    let angle = customAngle !== null ? customAngle : (Math.random()-0.5)*1.1;
-    this.vx = -speed * Math.cos(angle);
-    this.vy = speed * Math.sin(angle);
-    let hue = 200 + ballValueLevel*50;
-    this.color = powerUpActive && powerUpType==='rainbow' ? `hsl(${Date.now()*0.1%360}, 100%, 60%)` : `hsl(${hue%360}, 90%, 65%)`;
-    if(powerUpActive && powerUpType==='speed') this.vx *= 2, this.vy *= 2;
-  }
-  update(){
-    this.trail.push({x:this.x,y:this.y});
-    let trailLength = balls.length>200 ? 2 : 6;
-    if(this.trail.length>trailLength)this.trail.shift();
-    this.angle += this.rotSpeed;
-    this.x += this.vx;
-    this.y += this.vy;
-    if(this.x - this.r < 0){
-      if(shieldActive){
-        if(this.isBigBall){
-          shieldActive=false; shieldCooldownTime=Date.now(); playShieldBreak();
-          for(let i=0;i<120;i++){ let a = Math.random()*Math.PI*2; let s = Math.random()*8 + 4; let px = 30; let py = this.y; particles.push(new Particle(px, py, Math.cos(a)*s, Math.sin(a)*s, "#f88",8)); }
-        } else {
-          shieldBlocks--; playHit();
-          let particleCount = balls.length>200 ? 5 : 20+shieldLevel*6;
-          for(let i=0;i<particleCount;i++){ let a = Math.random()*Math.PI*2; let s = Math.random()*3+1.5; particles.push(new Particle(30, this.y, Math.cos(a)*s, Math.sin(a)*s, "#f44",4)); }
-          return false;
-        }
-      }
-      if(!shieldActive || this.isBigBall){
-        playHit();
-        let particleCount = balls.length>200 ? 10 : 40+shieldLevel*15;
-        for(let i=0;i<particleCount;i++){ let a = Math.random()*Math.PI*2; let s = Math.random()*4+2; particles.push(new Particle(30, this.y, Math.cos(a)*s, Math.sin(a)*s, "#f44",5)); }
-        score = Math.max(0, score - (this.isBigBall ? 50000 : Math.floor(this.value*0.7)));
-        return false;
-      }
-    }
-    let paddleTop = paddleY; let paddleBottom = paddleY + paddleH;
-    let paddleLeft = 40; let paddleRight = 40 + paddleW;
-    let helperTop = helperY; let helperBottom = helperY + paddleH;
-    let helperLeft = 40; let helperRight = 40 + 18;
-    let hitPaddle = this.x + this.r > paddleLeft && this.x - this.r < paddleRight && this.y + this.r > paddleTop && this.y - this.r < paddleBottom;
-    let hitHelper = maoBought && helperActive && this.x + this.r > helperLeft && this.x - this.r < helperRight && this.y + this.r > helperTop && this.y - this.r < helperBottom;
-    if(this.vx<0 && (hitPaddle || hitHelper)){
-      this.vx = -this.vx*1.06; this.x = 70;
-      score += this.isBigBall ? 5000 : this.value;
-      totalBallsRebounded++;
-      if(this.isPowerBall){
-        let r = Math.random();
-        if(r<0.33){ powerUpType='rainbow'; }else if(r<0.66){ powerUpType='immortal'; }else{ powerUpType='speed'; }
-        powerUpActive=true; powerUpEndTime=Date.now()+10000;
-        scoreTexts.push(new ScoreText(this.x,this.y,"POWER UP!"));
-      }
-      scoreTexts.push(new ScoreText(this.x,this.y,"+"+(this.isBigBall ? 5000 : this.value)));
-      playPing();
-      let particleCount = balls.length>200 ? 8 : 25+shieldLevel*3;
-      for(let i=0;i<particleCount;i++){ let a = Math.random()*Math.PI*2; let s = Math.random()*5 + 2; particles.push(new Particle(this.x,this.y, Math.cos(a)*s, Math.sin(a)*s, this.color,4)); }
-      if(hitPaddle && raquetePortatilBought){
-        charge = Math.min(102, charge + 1);
-        if(charge >=102){ shuttles.push(new Shuttle()); charge =0; }
-      }
-      if(hitHelper){
-        helperRebounds++;
-        if(helperRebounds >= helperMaxRebounds){
-          helperActive=false; helperCooldownTime=Date.now(); playShieldBreak();
-          for(let i=0;i<50;i++){ let a=Math.random()*Math.PI*2; let s=Math.random()*4+2; particles.push(new Particle(60, helperY + paddleH/2, Math.cos(a)*s, Math.sin(a)*s, "#5af",4)); }
-        }
-      }
-      return false;
-    }
-    if(this.y<0 || this.y>H){ this.vy = -this.vy; this.y = Math.max(0,Math.min(H,this.y)); }
-    return true;
-  }
-  draw(){
-    let trailAlpha = balls.length>200 ? 0.1 : 0.25;
-    for(let i=0;i<this.trail.length;i++){
-      let t=this.trail[i];
-      ctx.globalAlpha = (i/this.trail.length)*trailAlpha;
-      ctx.fillStyle = this.color;
-      ctx.beginPath(); ctx.arc(t.x,t.y,this.r*0.6,0,Math.PI*2); ctx.fill();
-    }
-    ctx.globalAlpha=1;
-    ctx.fillStyle = this.color;
-    ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
-    ctx.save();
-    ctx.translate(this.x,this.y);
-    ctx.rotate(this.angle);
-    let fontSize = this.isBigBall ? "80px" : (this.isPowerBall ? "44px" : "17px");
-    ctx.font=fontSize + " Arial";
-    ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillStyle="#000";
-    ctx.fillText(this.emoji,0,1);
-    ctx.restore();
-  }
-}
-
-class BigBall extends Ball {
-  constructor(y, customAngle=null){
-    super(y, customAngle);
-    this.r = 55; this.isBigBall = true; this.value = 5000;
-    this.emoji = ['⚽','⚾','🏀'][Math.floor(Math.random()*3)];
-    this.color = 'hsl(0, 0%, 20%)';
-  }
-  update(){
-    this.trail.push({x:this.x,y:this.y});
-    let trailLength = balls.length>200 ? 4 : 12;
-    if(this.trail.length>trailLength)this.trail.shift();
-    this.angle += this.rotSpeed;
-    this.x += this.vx; this.y += this.vy;
-    if(this.x - this.r < 0){
-      if(shieldActive){
-        shieldActive=false; shieldCooldownTime=Date.now(); playShieldBreak();
-        for(let i=0;i<200;i++){ let a = Math.random()*Math.PI*2; let s = Math.random()*10 + 5; let px = 30; let py = this.y; particles.push(new Particle(px, py, Math.cos(a)*s, Math.sin(a)*s, "#f88",12)); }
-      }
-      if(!shieldActive){
-        playHit();
-        let particleCount = 80;
-        for(let i=0;i<particleCount;i++){ let a = Math.random()*Math.PI*2; let s = Math.random()*6+3; particles.push(new Particle(30, this.y, Math.cos(a)*s, Math.sin(a)*s, "#f44",8)); }
-        score = Math.max(0, score - 50000);
-        return false;
-      }
-    }
-    let paddleTop = paddleY; let paddleBottom = paddleY + paddleH;
-    let paddleLeft = 40; let paddleRight = 40 + paddleW;
-    let helperTop = helperY; let helperBottom = helperY + paddleH;
-    let helperLeft = 40; let helperRight = 40 + 18;
-    let hitPaddle = this.x + this.r > paddleLeft && this.x - this.r < paddleRight && this.y + this.r > paddleTop && this.y - this.r < paddleBottom;
-    let hitHelper = maoBought && helperActive && this.x + this.r > helperLeft && this.x - this.r < helperRight && this.y + this.r > helperTop && this.y - this.r < helperBottom;
-    if(this.vx<0 && (hitPaddle || hitHelper)){
-      this.vx = -this.vx*1.06; this.x = 70;
-      score += 5000; totalBallsRebounded++;
-      scoreTexts.push(new ScoreText(this.x,this.y,"+5000"));
-      playPing();
-      let particleCount = 40;
-      for(let i=0;i<particleCount;i++){ let a = Math.random()*Math.PI*2; let s = Math.random()*6 + 3; particles.push(new Particle(this.x,this.y, Math.cos(a)*s, Math.sin(a)*s, this.color,8)); }
-      if(hitPaddle && raquetePortatilBought){
-        charge = Math.min(102, charge + 1);
-        if(charge >=102){ shuttles.push(new Shuttle()); charge =0; }
-      }
-      if(hitHelper){
-        helperRebounds++;
-        if(helperRebounds >= helperMaxRebounds){
-          helperActive=false; helperCooldownTime=Date.now(); playShieldBreak();
-          for(let i=0;i<50;i++){ let a=Math.random()*Math.PI*2; let s=Math.random()*4+2; particles.push(new Particle(60, helperY + paddleH/2, Math.cos(a)*s, Math.sin(a)*s, "#5af",4)); }
-        }
-      }
-      return false;
-    }
-    if(this.y<0 || this.y>H){ this.vy = -this.vy; this.y = Math.max(0,Math.min(H,this.y)); }
-    return true;
-  }
-  draw(){
-    let trailAlpha = balls.length>200 ? 0.15 : 0.35;
-    for(let i=0;i<this.trail.length;i++){
-      let t=this.trail[i];
-      ctx.globalAlpha = (i/this.trail.length)*trailAlpha;
-      ctx.fillStyle = this.color;
-      ctx.beginPath(); ctx.arc(t.x,t.y,this.r*0.8,0,Math.PI*2); ctx.fill();
-    }
-    ctx.globalAlpha=1;
-    ctx.fillStyle = this.color;
-    ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
-    ctx.save();
-    ctx.translate(this.x,this.y);
-    ctx.rotate(this.angle);
-    ctx.font="80px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillStyle="#000";
-    ctx.fillText(this.emoji,0,1);
-    ctx.restore();
-  }
-}
-
-let specialBalls = [];
-class SpecialBall {
-  constructor(){
-    this.x = 70; this.y = paddleY + paddleH/2; this.r = 11; this.trail = []; this.angle = 0; this.rotSpeed = (Math.random()-0.5)*0.2;
-    let speed = 5.5;
-    let dx = mouseX - this.x; let dy = mouseY - this.y;
-    let angle = Math.atan2(dy, dx);
-    this.vx = speed * Math.cos(angle); this.vy = speed * Math.sin(angle);
-    this.color = 'hsl(200, 100%, 50%)'; this.emoji = '🧿'; this.startTime = Date.now();
-  }
-  update(){
-    let now = Date.now();
-    let extraTime = Math.floor(score / 30000);
-    if(now - this.startTime > 5000 + extraTime * 1000){return false;}
-    this.trail.push({x:this.x,y:this.y});
-    let trailLength = balls.length>200 ? 2 : 6;
-    if(this.trail.length>trailLength)this.trail.shift();
-    this.angle += this.rotSpeed;
-    this.x += this.vx; this.y += this.vy;
-    if(this.y<0 || this.y>H){ this.vy = -this.vy; this.y = Math.max(0,Math.min(H,this.y)); }
-    if(this.x<0 || this.x>W){ this.vx = -this.vx; this.x = Math.max(0,Math.min(W,this.x)); }
-    let cannons = doubleDangerBought ? [cannonY, cannonY2] : [cannonY];
-    for(let cy of cannons){
-      if(Math.abs(this.x - (W-80)) < 50 && Math.abs(this.y - cy) < 30){
-        playShieldBreak(); paralyzedUntil = now + 5000; return false;
-      }
-    }
-    if(this.x > W){
-      playShieldBreak();
-      for(let i=0;i<50;i++){ let a = Math.random()*Math.PI*2; let s = Math.random()*4+2; particles.push(new Particle(this.x,this.y, Math.cos(a)*s, Math.sin(a)*s, this.color,4)); }
-      for(let i=0;i<10;i++){
-        let cy = doubleDangerBought ? (Math.random()<0.5 ? cannonY : cannonY2) : cannonY;
-        let customAngle = (Math.random()-0.5)*Math.PI;
-        balls.push(new Ball(cy, customAngle));
-      }
-      return false;
-    }
-    return true;
-  }
-  draw(){
-    let trailAlpha = balls.length>200 ? 0.1 : 0.25;
-    for(let i=0;i<this.trail.length;i++){
-      let t=this.trail[i];
-      ctx.globalAlpha = (i/this.trail.length)*trailAlpha;
-      ctx.fillStyle = this.color;
-      ctx.beginPath(); ctx.arc(t.x,t.y,this.r*0.6,0,Math.PI*2); ctx.fill();
-    }
-    ctx.globalAlpha=1;
-    ctx.fillStyle = this.color;
-    ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
-    ctx.save();
-    ctx.translate(this.x,this.y);
-    ctx.rotate(this.angle);
-    ctx.font="17px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillStyle="#fff";
-    ctx.fillText(this.emoji,0,1);
-    ctx.restore();
-  }
-}
-
-let shockwaves = [];
-class Shockwave {
-  constructor(){ this.x=20; this.y = H/2; this.radius=0; this.speed=20; this.life=50; this.width=5; }
-  update(){ this.radius += this.speed; this.life--; this.width = 5 * (this.life/50); return this.life>0; }
-  draw(){ ctx.strokeStyle="#fff8"; ctx.lineWidth=this.width; ctx.beginPath(); ctx.arc(this.x,this.y, this.radius,0,Math.PI*2); ctx.stroke(); }
-}
-
-let shuttles = [];
-class Shuttle {
-  constructor(){
-    this.x = 70; this.y = paddleY + paddleH/2; this.r = 60; this.trail = []; this.angle = 0; this.rotSpeed = 0.3;
-    let angle = (Math.random() - 0.5) * Math.PI * 2;
-    this.vx = 10 * Math.cos(angle); this.vy = 10 * Math.sin(angle);
-    this.color = '#fff'; this.emoji = '🏸'; this.startTime = Date.now();
-  }
-  update(){
-    let now = Date.now();
-    if(now - this.startTime > 15000){
-      for(let i=0;i<50;i++){ let a = Math.random()*Math.PI*2; let s = Math.random()*4+2; particles.push(new Particle(this.x,this.y, Math.cos(a)*s, Math.sin(a)*s, this.color,4)); }
-      return false;
-    }
-    this.trail.push({x:this.x,y:this.y});
-    let trailLength = balls.length>200 ? 2 : 6;
-    if(this.trail.length>trailLength)this.trail.shift();
-    this.angle += this.rotSpeed;
-    this.x += this.vx; this.y += this.vy;
-    if(this.y<0 || this.y>H){ this.vy = -this.vy; this.y = Math.max(0,Math.min(H,this.y)); }
-    if(this.x<0 || this.x>W){ this.vx = -this.vx; this.x = Math.max(0,Math.min(W,this.x)); }
-    for(let i=balls.length-1;i>=0;i--){
-      let b = balls[i];
-      let dx = this.x - b.x; let dy = this.y - b.y;
-      let dist = Math.sqrt(dx*dx + dy*dy);
-      if(dist < this.r + b.r){
-        score += b.value; totalBallsRebounded++;
-        if(b.isPowerBall){
-          let r = Math.random();
-          if(r<0.33){ powerUpType='rainbow'; }else if(r<0.66){ powerUpType='immortal'; }else{ powerUpType='speed'; }
-          powerUpActive=true; powerUpEndTime=Date.now()+10000;
-          scoreTexts.push(new ScoreText(b.x,b.y,"POWER UP!"));
-        }
-        scoreTexts.push(new ScoreText(b.x,b.y,"+"+b.value));
-        playPing();
-        let particleCount = balls.length>200 ? 5 : 10+shieldLevel*10;
-        for(let j=0;j<particleCount;j++){ let a = Math.random()*Math.PI*2; let s = Math.random()*5 + 2; particles.push(new Particle(b.x,b.y, Math.cos(a)*s, Math.sin(a)*s, b.color,4)); }
-        balls.splice(i,1);
-      }
-    }
-    return true;
-  }
-  draw(){
-    let trailAlpha = balls.length>200 ? 0.1 : 0.25;
-    for(let i=0;i<this.trail.length;i++){
-      let t=this.trail[i];
-      ctx.globalAlpha = (i/this.trail.length)*trailAlpha;
-      ctx.fillStyle = this.color;
-      ctx.beginPath(); ctx.arc(t.x,t.y,this.r*0.6,0,Math.PI*2); ctx.fill();
-    }
-    ctx.globalAlpha=1;
-    ctx.fillStyle = "rgba(255,255,255,0)";
-    ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fill();
-    ctx.save();
-    ctx.translate(this.x,this.y);
-    ctx.rotate(this.angle);
-    ctx.font="60px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillStyle="#000";
-    ctx.fillText(this.emoji,0,1);
-    ctx.restore();
-  }
-}
-
-let lastShot = 0;
-let lastShot2 = 0;
-const basePaddleH = 140;
-let paddleH = basePaddleH * (1 + paddleSizeLevel*0.15);
-let paddleY = H/2 - paddleH/2;
-let paddleW = 24;
-
-canvas.addEventListener("mousemove",e=>{mouseX = e.clientX; mouseY = e.clientY-90;});
-canvas.addEventListener("touchmove",e=>{e.preventDefault(); mouseX = e.touches[0].clientX; mouseY = e.touches[0].clientY-90;});
-canvas.addEventListener("contextmenu",e=>e.preventDefault());
-canvas.addEventListener("mousedown",e=>{ if(e.button===0 && raquetearBought && Date.now() - lastRaquetear >35000){ lastRaquetear = Date.now(); specialBalls.push(new SpecialBall()); } });
-document.addEventListener("keydown",e=>{if(e.keyCode===36){score+=2000;}});
-
-document.querySelectorAll('.upgrade').forEach(el=>el.classList.add('locked'));
-
-let lastUnlockCheck = new Array(15).fill(false);
-function checkUnlocks(){
-  for(let i=0;i<9;i++){
-    let el=document.getElementById('t'+(i+1));
-    if(score>=topCosts[i]){
-      if(el.classList.contains('locked')){ playUnlock(); }
-      el.classList.remove('locked');
-      if(score<topCosts[i])el.classList.add('no-money'); else el.classList.remove('no-money');
-    }
-  }
-  for(let i=0;i<6;i++){
-    let el=document.getElementById('u'+(i+1));
-    if(score>=costs[i]){
-      if(el.classList.contains('locked')){ playUnlock(); }
-      el.classList.remove('locked');
-      if(score<costs[i])el.classList.add('no-money'); else el.classList.remove('no-money');
-    }
-  }
-}
-
-let cutsceneActive = true;
-const initialVideoId = 'Nf8FCLT8S6A';
-const bossVideoId = 'eF0LoJMv5nc';
-const initialDialogues = [
-  {text:"Gostaria de ser o melhor raqueteador do universo.",color:"#f44"},
-  {text:"Se você bater o record de um Milhão de raquetadas eu vou te dar o trofeu de melhor batedor de bola da bahia.",color:"#4af"},
-  {text:"Não parece tão dificil assim, só rebater.",color:"#f44"},
-  {text:"Então vamos ver se aguenta o meu canhão retangular da morte vermelha. Você pode ficar com o retangulo azul radical, rebata todas as bolas se puder. Cada batida vale ouro. Cada perda vale taxa.",color:"#4af"},
-  {text:"Eu tenho upgrades muito poderosos no meu favor. Tomara que não use eles na hora errada.",color:"#f44"}
+const WORDS = [
+  "GATO","MESA","LIVRO","PORTA","TERRA","CHUVA","PEDRA","FORÇA","VERDE","PRETO",
+  "BRANCO","VENTO","FOGO","AGUA","NOITE","MUNDO","TEMPO","PODER","MEDO","AMOR",
+  "SONHO","ROSTO","CAMPO","FLOR","PEIXE","LEITE","PRATO","CABELO","NUVEM","PLANO",
+  "TREM","BOLA","PAPEL","FESTA","ESTRADA","CANTO","FERRO","VIDRO","COURO","DOCE",
+  "CIDADE","ESCOLA","MUSICA","VIAGEM","JARDIM","FOLHA","ARVORE","CORDA","ESPADA",
+  "LUTA","FORCA","ARMA","VAGA","BARCO","BANCO","CAMPO","PILHA","CAIXA","RODA",
+  "TRILHA","PONTE","LAGO","MINA","FAROL","CHAVE","ILHA","VALE","COSTA","MONTE",
+  "BRISA","LABIO","PULSO","COLAR","ANEIS","BOLSA","LUVA","BOTAS","SAIA","TOUCA",
+  "FITA","PANO","FUNDO","VIDRO","BURRO","CAVALO","LOBO","COBRA","AGUIA","CORVO",
+  "FALCAO","URSO","TIGRE","LEAO","ZEBRA","VEADO","RAPOSA","COELHO","PUMA","LINCE"
 ];
-const midDialogues = [
-  {text:"Ha! eu sou o melhor rebatedor de toda a bahia! me dê meu troféu!",color:"#f44"},
-  {text:"Hm muito bem mas você só chegou em 1 milhão. Isso não é nada perto de mim.",color:"#4af"},
-  {text:"Isso é um desafio para um outro dia. Me dê meu troféu- *Crack* minha raquete!",color:"#f44"},
-  {text:"Ainda não... Você pode ter derrotado meus dois canhões mas consegue ME derrotar?",color:"#4af"},
-  {text:"Chegue a 2 milhões com sua raquete quebrada e eu te tornarei o vencedor.",color:"#4af"}
+
+const WORDLE_HINTS = {
+  "GATO":"Animal doméstico que mia", "MESA":"Móvel onde você come",
+  "LIVRO":"Objeto com páginas e letras", "PORTA":"Abre e fecha um cômodo",
+  "TERRA":"Planeta em que vivemos / solo", "CHUVA":"Água que cai do céu",
+  "PEDRA":"Rocha pequena", "FORCA":"Intensidade / jogo da forca",
+  "VERDE":"Cor da folha", "PRETO":"Cor do carvão",
+  "BRANCO":"Cor do leite", "VENTO":"Ar em movimento",
+  "FOGO":"Chama quente", "AGUA":"Líquido transparente vital",
+  "NOITE":"Período sem sol", "MUNDO":"A Terra inteira",
+  "TEMPO":"Horas e minutos passando", "PODER":"Ter capacidade ou força",
+  "MEDO":"Sentimento de terror", "AMOR":"Sentimento de afeto profundo",
+  "SONHO":"O que acontece enquanto você dorme", "ROSTO":"Sua face",
+  "CAMPO":"Área rural aberta", "FLOR":"Parte colorida da planta",
+  "PEIXE":"Animal aquático com escamas", "LEITE":"Bebida branca da vaca",
+  "PRATO":"Utensílio para servir comida", "CABELO":"Fios que crescem na cabeça",
+  "NUVEM":"Massa branca no céu", "PLANO":"Projeto ou superfície plana",
+  "TREM":"Transporte sobre trilhos", "BOLA":"Objeto esférico para esportes",
+  "PAPEL":"Material para escrever", "FESTA":"Celebração / comemoração",
+  "CANTO":"Parte do cômodo / melodia", "FERRO":"Metal resistente",
+  "VIDRO":"Material transparente frágil", "COURO":"Pele de animal tratada",
+  "DOCE":"Algo com açúcar", "CIDADE":"Local urbano populoso",
+  "ESCOLA":"Onde se aprende", "MUSICA":"Arte dos sons",
+  "VIAGEM":"Deslocamento para outro lugar", "JARDIM":"Área com plantas e flores",
+  "FOLHA":"Parte verde da planta / papel", "ARVORE":"Vegetal com tronco e galhos",
+  "CORDA":"Fio espesso para amarrar", "ESPADA":"Arma branca com lâmina longa",
+  "LUTA":"Combate / conflito", "ARMA":"Objeto para combate",
+  "VAGA":"Posição disponível", "BARCO":"Embarcação na água",
+  "BANCO":"Instituição financeira / assento", "PILHA":"Monte empilhado / bateria",
+  "CAIXA":"Recipiente retangular", "RODA":"Objeto circular que gira",
+  "TRILHA":"Caminho estreito", "PONTE":"Estrutura sobre rio ou abismo",
+  "LAGO":"Massa de água parada", "MINA":"Local de extração mineral",
+  "FAROL":"Torre com luz para navios", "CHAVE":"Abre portas e fechaduras",
+  "ILHA":"Terra rodeada de água", "VALE":"Depressão entre montanhas",
+  "COSTA":"Beira do mar", "MONTE":"Elevação do terreno",
+  "BRISA":"Vento suave", "LABIO":"Parte da boca",
+  "PULSO":"Onde se sente o batimento / articulação do braço",
+  "COLAR":"Acessório no pescoço", "BOLSA":"Acessório de mão",
+  "LUVA":"Proteção para as mãos", "BOTAS":"Calçado alto",
+  "FITA":"Tira comprida de tecido", "PANO":"Tecido simples",
+  "FUNDO":"Parte mais baixa", "BURRO":"Animal de carga / tolo",
+  "CAVALO":"Animal de monta", "LOBO":"Animal selvagem uivador",
+  "COBRA":"Réptil rastejante peçonhento", "AGUIA":"Ave de rapina majestosa",
+  "CORVO":"Ave preta inteligente", "FALCAO":"Ave de rapina veloz",
+  "URSO":"Mamífero grande e peludo", "TIGRE":"Felino listrado",
+  "LEAO":"Rei da selva", "ZEBRA":"Animal listrado preto e branco",
+  "VEADO":"Cervo / animal com chifres ramificados", "RAPOSA":"Animal astuto laranja",
+  "COELHO":"Animal com orelhas grandes", "PUMA":"Felino americano",
+  "LINCE":"Felino de orelhas pontudas"
+};
+
+const MINECRAFT_Q = [
+  {q:"Qual item é dropado pelo Enderman quando morto?",o:["Ender Pearl","Eye of Ender","Blaze Rod","Nether Star"],a:0,f:"O Enderman dropa Ender Pearls, usadas para criar o Eye of Ender (junto com Blaze Rods) para abrir o portal do End."},
+  {q:"Quantos blocos de obsidiana são necessários para construir um portal do Nether?",o:["10","12","14","16"],a:0,f:"São necessários no mínimo 10 blocos de obsidiana para o portal funcionar (o frame 4x5 com os cantos)." },
+  {q:"Qual mob é invocado pelo Wither Boss?",o:["Wither Skeletons","Wither Skulls","Wither Storm","Wither Bats"],a:0,f:"O Wither invoca Wither Skeletons durante a batalha para ajudá-lo."},
+  {q:"Com o que é feita a Elytra funcionar?",o:["Firework Rockets","TNT","Gunpowder","Blaze Powder"],a:0,f:"Foguetes (Firework Rockets) são usados para impulsionar a Elytra durante o voo planar."},
+  {q:"Qual bioma é necessário para encontrar o Sniffer?",o:["Ocean ruins / Archaeology","Jungle","Mesa","Dark Forest"],a:0,f:"O Sniffer nasce de ovos encontrados em ruínas oceânicas através de arqueologia."},
+  {q:"O que acontece se você dormir numa cama no Nether?",o:["A cama explode","Você teletransporta","Você regenera vida","Nada acontece"],a:0,f:"Camas explodem no Nether e no End — não existe dia/noite nessas dimensões."},
+  {q:"Qual é o material mais resistente do jogo (exceto bedrock)?",o:["Netherite","Diamond","Obsidian","Ancient Debris"],a:0,f:"O Netherite é mais resistente que o diamante, não queima na lava e tem mais durabilidade."},
+  {q:"Qual mob dropa Blaze Rods?",o:["Blaze","Ghast","Magma Cube","Wither Skeleton"],a:0,f:"Os Blazes, encontrados em fortalezas do Nether, dropam Blaze Rods essenciais para pociones."},
+  {q:"Que item é necessário para domar um lobo?",o:["Bone (Osso)","Raw Meat","Apple","Fish"],a:0,f:"Ossos têm chance de domar lobos selvagens, transformando-os em dogs leais."},
+  {q:"Quantos tipos de madeira existem no Minecraft (Java Edition até 1.20)?",o:["8","6","10","12"],a:0,f:"Oak, Spruce, Birch, Jungle, Acacia, Dark Oak, Mangrove e Cherry — 8 tipos."},
+  {q:"O que é necessário para fazer uma Poção de Força?",o:["Blaze Powder","Magma Cream","Sugar","Spider Eye"],a:0,f:"Blaze Powder é o ingrediente para a Strength Potion (junto com Awkward Potion)."},
+  {q:"Qual mob causa a doença 'Nausea' no jogador?",o:["Elder Guardian","Witch","Cave Spider","Endermite"],a:0,f:"O Elder Guardian causa Mining Fatigue e o efeito visual de náusea."},
+  {q:"Para que serve o Beacon?",o:["Dar status buffs","Abrir portais","Invocar mobs","Teletransportar"],a:0,f:"Beacons dão status effects como Speed, Haste, Strength, Jump Boost e Resistance numa área."},
+  {q:"Qual é o drop raro do Ender Dragon?",o:["Dragon Egg","Dragon Scales","Dragon Heart","Dragon Tooth"],a:0,f:"O Dragon Egg é dropado uma única vez ao derrotar o Ender Dragon pela primeira vez."},
+  {q:"Qual criatura pode ser invocada com uma cabeça de Wither Skeleton e Soul Sand?",o:["Wither Boss","Elder Guardian","Ender Dragon","Ravager"],a:0,f:"O Wither Boss é invocado com 3 Wither Skeleton Skulls e 4 blocos de Soul Sand no formato T."},
+  {q:"Qual item é necessário para criar uma 'Spyglass' (luneta)?",o:["Amethyst Shard + Copper","Gold + Glass","Iron + Lens","Diamond + Glass"],a:0,f:"A Spyglass é crafteada com 2 barras de Copper Ingot e 1 Amethyst Shard."},
+  {q:"O Axolotl é encontrado em qual bioma aquático?",o:["Lush Caves","Ocean","Swamp","Frozen River"],a:0,f:"Os Axolotls vivem em Lush Caves, um bioma subterrâneo com vegetação exuberante."},
+  {q:"Quantos olhos de ender são necessários para ativar o portal do End?",o:["12","8","10","16"],a:0,f:"O portal do End possui 12 frames, e cada um precisa de um Eye of Ender para ser ativado."},
+  {q:"Qual é o bioma mais raro do Minecraft?",o:["Modified Jungle Edge","Mushroom Island","Ice Spikes","Bamboo Jungle"],a:0,f:"O bioma Modified Jungle Edge é considerado o mais raro, ocorrendo em menos de 0.0001% do mapa."},
+  {q:"O que é craftado com 9 Netherite Ingots?",o:["Netherite Block","Netherite Beacon","Ancient Block","Blast Furnace"],a:0,f:"9 Netherite Ingots formam um bloco de Netherite, muito valioso para armazenamento."},
+  {q:"Que efeito a Golden Apple Encantada ('God Apple') dá?",o:["Absorption IV + Regeneration II","Full Heal","Invincibility","Speed III"],a:0,f:"A Notch Apple dá Absorption IV, Regeneration II, Fire Resistance e Resistance II por um tempo."},
+  {q:"Qual mob do Nether explode ao se aproximar?",o:["Creeper","Ghast","Blaze","Hoglin"],a:0,f:"Essa é pegadinha — Creeper é do Overworld. No Nether, nenhum mob explode dessa forma. Mas Ghasts lançam bolas de fogo."},
+  {q:"O que são 'Sculk Sensors'?",o:["Detectam vibrações e som","Geram redstone","Invocam Wardens","Fazem explosão"],a:0,f:"Sculk Sensors detectam vibrações (movimentos, sons) e emitem sinal de redstone."},
+  {q:"Quantos níveis de encantamento existem no máximo na mesa de encantamentos?",o:["30","50","100","25"],a:0,f:"O nível máximo na Enchanting Table é 30, obtido com 15 estantes ao redor."},
+  {q:"O Warden é cego. Como ele detecta o jogador?",o:["Som e vibrações","Calor corporal","Movimento visual","Cheiro"],a:0,f:"O Warden usa smell (farejando) e detecção de vibrações/som via Sculk para encontrar jogadores."},
 ];
-const endDialogues = [
-  {text:"Isso foi tudo? Eu fiz isso de olhos fechados.",color:"#f44"},
-  {text:"Está bem... você é o melhor raqueteador da bahia... Pegue seu troféu.",color:"#4af"}
+
+const FILMES_Q = [
+  {q:"Em qual ano foi lançado o filme 'Titanic' de James Cameron?",o:["1997","1999","1995","2001"],a:0,f:"Titanic (1997) ganhou 11 Oscars, incluindo Melhor Filme, e foi o maior bilheteiro do mundo até Avatar (2010)."},
+  {q:"Qual ator interpreta Tony Stark / Iron Man no MCU?",o:["Robert Downey Jr.","Chris Evans","Mark Ruffalo","Benedict Cumberbatch"],a:0,f:"Robert Downey Jr. deu vida ao Tony Stark desde Iron Man (2008) até Vingadores: Ultimato (2019)."},
+  {q:"Qual é o maior bilheteiro de todos os tempos (2024)?",o:["Avatar","Avengers: Endgame","Top Gun: Maverick","The Lion King 2019"],a:0,f:"Avatar (2009) de James Cameron lidera com ~$2.9 bilhões, recuperando o topo depois de ser ultrapassado por Endgame."},
+  {q:"Quem dirigiu 'Pulp Fiction' (1994)?",o:["Quentin Tarantino","Martin Scorsese","Coen Brothers","David Fincher"],a:0,f:"Quentin Tarantino dirigiu Pulp Fiction, que ganhou a Palma de Ouro em Cannes em 1994."},
+  {q:"Em 'O Poderoso Chefão', qual é o sobrenome da família mafiosa?",o:["Corleone","Soprano","Gambino","Lucchese"],a:0,f:"A família Corleone é fictícia, mas foi baseada em famílias da máfia italiana real. Vito Corleone é o patriarca."},
+  {q:"Qual filme da Pixar apresentou o personagem Wall-E?",o:["WALL·E (2008)","Robots (2005)","Toy Story 3","Bolt"],a:0,f:"WALL-E (2008) ganhou o Oscar de Melhor Animação e é considerado um dos melhores filmes da Pixar."},
+  {q:"Quem interpreta Hermione Granger nos filmes de Harry Potter?",o:["Emma Watson","Emma Stone","Keira Knightley","Natalie Portman"],a:0,f:"Emma Watson interpretou Hermione Granger em todos os 8 filmes da saga Harry Potter (2001–2011)."},
+  {q:"Qual é o nome do vilão principal de 'O Leão Rei'?",o:["Scar","Mufasa","Hyena","Simba"],a:0,f:"Scar (Cicatriz em PT-BR) é o irmão de Mufasa que o assassina para tomar o trono do reino."},
+  {q:"Em qual cidade se passa o filme 'Cidade de Deus' (2002)?",o:["Rio de Janeiro","São Paulo","Salvador","Recife"],a:0,f:"Cidade de Deus fica no Rio de Janeiro. O filme de Fernando Meirelles foi indicado a 4 Oscars."},
+  {q:"Qual ator ganhou o Oscar por 'O Gladiador' (2000)?",o:["Russell Crowe","Tom Hanks","Mel Gibson","Brad Pitt"],a:0,f:"Russell Crowe ganhou o Oscar de Melhor Ator por sua atuação como Maximus em Gladiator (2000)."},
+  {q:"Em 'Star Wars: O Retorno de Jedi', quem é revelado ser pai de Luke?",o:["Darth Vader","Palpatine","Obi-Wan","Yoda"],a:0,f:"Darth Vader (Anakin Skywalker) é o pai de Luke, revelado em 'O Império Contra-Ataca' (1980)."},
+  {q:"Qual filme de Christopher Nolan se passa em múltiplas camadas de sonhos?",o:["Inception","Interstellar","The Dark Knight","Memento"],a:0,f:"Inception (2010) explora a ideia de entrar nos sonhos das pessoas para plantar ideias em suas mentes."},
+  {q:"Qual atriz interpreta Katniss Everdeen em 'Jogos Vorazes'?",o:["Jennifer Lawrence","Emma Stone","Shailene Woodley","Kristen Stewart"],a:0,f:"Jennifer Lawrence ganhou fama mundial ao interpretar Katniss na saga Hunger Games (2012–2015)."},
+  {q:"'Forrest Gump' ganhou quantos Oscars em 1995?",o:["6","4","8","2"],a:0,f:"Forrest Gump (1994) ganhou 6 Oscars incluindo Melhor Filme, Melhor Diretor e Melhor Ator (Tom Hanks)."},
+  {q:"Qual é o nome do tubarão no filme 'Procurando Nemo'?",o:["Bruce","Jaws","Finn","Shark"],a:0,f:"Bruce é o tubarão (Tubarão Branco) que afirma 'Peixes são amigos, não comida!' no filme da Pixar."},
+  {q:"Em qual país se passa a maior parte de 'Parasita' (2019)?",o:["Coreia do Sul","Japão","China","Taiwan"],a:0,f:"Parasita (Parasite) é um filme sul-coreano de Bong Joon-ho que ganhou 4 Oscars incluindo Melhor Filme."},
+  {q:"Quem compôs a trilha sonora de 'Star Wars'?",o:["John Williams","Hans Zimmer","Ennio Morricone","Danny Elfman"],a:0,f:"John Williams é um dos maiores compositores de cinema, responsável por Star Wars, Indiana Jones, Jurassic Park e mais."},
+  {q:"Quantos filmes fazem parte da 'Trilogia do Cavaleiro das Trevas' de Nolan?",o:["3","2","4","5"],a:0,f:"Batman Begins (2005), The Dark Knight (2008) e The Dark Knight Rises (2012) formam a trilogia."},
+  {q:"Qual é o nome do 'gênio' de 'Aladdin' (Disney)?",o:["Gênio (Genie)","Jafar","Iago","Fazul"],a:0,f:"O Gênio da Lâmpada foi dublado por Robin Williams na versão original de 1992, sendo um dos papeis mais icônicos da Disney."},
+  {q:"Em 'Vingadores: Guerra Infinita', o que Thanos usa para eliminar metade do universo?",o:["A Manopla do Infinito","O Martelo do Thor","A Pedra da Alma","O Bastão de Loki"],a:0,f:"A Manopla do Infinito com todas as 6 Joias do Infinito deu a Thanos o poder de eliminar metade da vida do universo."},
+  {q:"Qual foi o primeiro filme sonoro da história (1927)?",o:["The Jazz Singer","Singin' in the Rain","City Lights","Metropolis"],a:0,f:"The Jazz Singer (1927) com Al Jolson foi o primeiro filme com som sincronizado, marcando o fim do cinema mudo."},
+  {q:"Quem interpreta o Coringa no filme de 2019?",o:["Joaquin Phoenix","Heath Ledger","Jack Nicholson","Jared Leto"],a:0,f:"Joaquin Phoenix ganhou o Oscar de Melhor Ator por sua atuação perturbadora como Arthur Fleck / Joker (2019)."},
+  {q:"Em 'Matrix', qual pílula Neo toma para ver a verdade?",o:["Vermelha","Azul","Verde","Branca"],a:0,f:"A pílula vermelha revela a realidade; a azul mantém na ilusão. Morpheus oferece a escolha a Neo."},
+  {q:"Qual animação da Disney ganhou o Oscar de Melhor Filme de Animação em 2003?",o:["Spirited Away","Shrek 2","Lilo & Stitch","Ice Age"],a:0,f:"Spirited Away (Sen to Chihiro) de Hayao Miyazaki (Studio Ghibli) venceu na cerimônia de 2003, sendo o único anime a ganhar."},
+  {q:"Qual dupla viveu a história de amor central em 'La La Land' (2016)?",o:["Ryan Gosling & Emma Stone","Bradley Cooper & Lady Gaga","Leonardo DiCaprio & Kate Winslet","Jake Gyllenhaal & Anne Hathaway"],a:0,f:"Ryan Gosling e Emma Stone protagonizaram La La Land, que ganhou 6 Oscars incluindo Melhor Diretora para Damien Chazelle."},
 ];
-const dialogueEl = document.getElementById("dialogue");
-const charactersEl = document.getElementById("characters");
-let player;
 
-function onYouTubeIframeAPIReady(){
-  player = new YT.Player('yt', {
-    events: { 'onReady': onPlayerReady }
-  });
+const ANIMAIS_BR = [
+  { name:"Onça-pintada",    parts:["Onça","-","pintada"],        fakes:["preta","tigre","do-mato","branca"] },
+  { name:"Tamanduá-bandeira", parts:["Tamanduá","-","bandeira"],  fakes:["mirim","do-campo","gigante","cinza"] },
+  { name:"Capivara",          parts:["Capi","vara"],               fakes:["grande","-d'água","do-rio","parda"] },
+  { name:"Mico-leão-dourado", parts:["Mico","-","leão","-","dourado"], fakes:["preto","cabeça-branca","prata","mono"] },
+  { name:"Lobo-guará",        parts:["Lobo","-","guará"],          fakes:["cinzento","de-crina","do-campo","bravo"] },
+  { name:"Tatu-bola",         parts:["Tatu","-","bola"],           fakes:["gigante","canastra","quinze-quilos","de-rabo"] },
+  { name:"Arara-azul",        parts:["Arara","-","azul"],          fakes:["vermelha","preta","martelo","canindé"] },
+  { name:"Boto-cor-de-rosa",  parts:["Boto","-","cor","-de-","rosa"], fakes:["cinza","do-rio","amazônico","tucuxi"] },
+  { name:"Sabiá-laranjeira",  parts:["Sabiá","-","laranjeira"],    fakes:["do-campo","coleira","barranco","Sabiá"] },
+  { name:"Piranha-vermelha",  parts:["Piranha","-","vermelha"],    fakes:["preta","amazônica","dentuda","do-rio"] },
+  { name:"Pirarucu",          parts:["Pira","rucu"],               fakes:["gigante","do-rio","vermelho","arapaima"] },
+  { name:"Jacaré-açu",        parts:["Jacaré","-","açu"],          fakes:["do-papo-amarelo","coroa","pargo","grande"] },
+  { name:"Anta-brasileira",   parts:["Anta","-","brasileira"],     fakes:["andina","malaia","gigante","do-mato"] },
+  { name:"Quati",             parts:["Qua","ti"],                  fakes:["do-mato","rabo-anelado","nariz-comprido","cinza"] },
+  { name:"Morcego-vampiro",   parts:["Morcego","-","vampiro"],     fakes:["fruteiro","pescador","espectro","martelo"] },
+  { name:"Tucano-toco",       parts:["Tucano","-","toco"],         fakes:["ariel","billrothii","verde","bico-preto"] },
+  { name:"Gavião-real",       parts:["Gavião","-","real"],         fakes:["carrapateiro","caboclo","martelo","pega-macaco"] },
+  { name:"Jaguatirica",       parts:["Jagua","tirica"],            fakes:["pintada","do-mato","serrana","da-caatinga"] },
+  { name:"Veado-campeiro",    parts:["Veado","-","campeiro"],      fakes:["catingueiro","galheiro","dos-pampas","branco"] },
+  { name:"Peixe-boi-da-Amazônia", parts:["Peixe","-","boi","-da-","Amazônia"], fakes:["marinho","africano","branco","gordo"] },
+];
+
+const GAMES_Q = [
+  {q:"Qual é o maior jogo do mundo em território explorável (área)?",o:["Minecraft","GTA V","No Man's Sky","The Elder Scrolls II: Daggerfall"],a:3,f:"Daggerfall (1996) tem um mapa de ~162.000 km². Minecraft é tecnicamente infinito proceduralmente, mas Daggerfall tem o maior mapa fixo."},
+  {q:"Qual personagem da Nintendo usa um chapéu vermelho e pula em cogumelos?",o:["Mario","Link","Donkey Kong","Kirby"],a:0,f:"Mario (Mario Mario) criado por Shigeru Miyamoto em 1981 é o personagem mais icônico da indústria dos games."},
+  {q:"Qual jogo popularizou o Battle Royale com o modo '100 players, 1 winner'?",o:["PUBG","Fortnite","Warzone","Apex Legends"],a:0,f:"PUBG (PlayerUnknown's Battlegrounds, 2017) popularizou o gênero antes do Fortnite se tornar fenômeno cultural."},
+  {q:"Em League of Legends, qual campeão é chamado de 'O Invocador das Sombras'?",o:["Karthus","Veigar","Yorick","Mordekaiser"],a:0,f:"Karthus, o Lich do Vazio, é o Deathsinger / Invoker famoso por sua ult global que pode matar inimigos em qualquer lugar do mapa."},
+  {q:"Qual jogo tem o personagem Master Chief?",o:["Halo","Doom","Call of Duty","Gears of War"],a:0,f:"Master Chief (John-117) é o Spartan-II protagonista da saga Halo, um dos maiores ícones dos consoles Xbox/Microsoft."},
+  {q:"Em GTA San Andreas, qual é o nome completo do protagonista?",o:["Carl Johnson (CJ)","Tommy Vercetti","Niko Bellic","Trevor Philips"],a:0,f:"Carl 'CJ' Johnson volta a Los Santos após 5 anos em Liberty City para o funeral de sua mãe, e aí as coisas complicam."},
+  {q:"Qual game indie de 2016 é sobre um menino em um mundo subterrâneo de monstros?",o:["Undertale","Hollow Knight","Celeste","Shovel Knight"],a:0,f:"Undertale (2015, lançado em setembro de 2015) de Toby Fox tem o famoso sistema onde você pode terminar o jogo sem matar ninguém."},
+  {q:"Em Zelda, qual é o nome da princesa que sempre precisa ser salva?",o:["Zelda","Saria","Impa","Midna"],a:0,f:"A Princesa Zelda é a princesa de Hyrule. Curiosamente, o personagem jogável é Link — Zelda é o nome do jogo inteiro."},
+  {q:"Qual foi o primeiro jogo da franquia 'Call of Duty'?",o:["Call of Duty (2003)","Modern Warfare (2007)","Black Ops (2010)","World at War (2008)"],a:0,f:"O primeiro CoD (2003) foi desenvolvido pela Infinity Ward e focado na Segunda Guerra Mundial."},
+  {q:"Em Among Us, quantos impostores pode haver no máximo numa partida padrão?",o:["3","2","4","5"],a:0,f:"Among Us permite no máximo 3 impostores numa partida de até 15 jogadores."},
+  {q:"Qual personagem de Fortnite é o icônico skin do Capelo?",o:["Default Skin / Jonesy","Skull Trooper","Reaper","Fishstick"],a:0,f:"O Default Skin (Jonesy) é o skin padrão dado a jogadores sem cosméticos, tornando-se um meme clássico do jogo."},
+  {q:"Qual game foi o primeiro a usar o motor Source da Valve?",o:["Counter-Strike: Source","Half-Life 2","Portal","Left 4 Dead"],a:0,f:"Half-Life 2 (2004) foi o jogo inaugural do motor Source, revolucionando gráficos e física nos jogos de PC."},
+  {q:"Em Minecraft, qual mob ataca apenas à noite e explode ao ser exposto à luz solar?",o:["Creeper","Zombie","Skeleton","Enderman"],a:1,f:"Zumbis (Zombies) pegam fogo à luz do dia e morrem. Creepers não morrem com luz solar."},
+  {q:"Qual personagem é o protagonista de 'The Witcher 3'?",o:["Geralt de Rívia","Yennefer","Ciri","Vesemir"],a:0,f:"Geralt de Rívia, o Witcher de cabelos brancos, é o protagonista da trilogia de jogos e da série Netflix."},
+  {q:"Quantas gerações de Pokémon existem (até 2024)?",o:["9","8","7","10"],a:0,f:"A 9ª geração foi introduzida com Pokémon Scarlet e Violet (2022), passados na região Paldea, inspirada na Península Ibérica."},
+  {q:"Qual empresa criou o PlayStation?",o:["Sony","Nintendo","Sega","Microsoft"],a:0,f:"O PlayStation foi criado pela Sony e lançado originalmente no Japão em dezembro de 1994, revolucionando o mercado de consoles."},
+  {q:"Em Dark Souls, qual é a frase mais famosa da série?",o:["YOU DIED","GAME OVER","RETURN TO SAFETY","TRY AGAIN"],a:0,f:"'YOU DIED' em letras vermelhas é o símbolo de frustração e conquista dos fãs da FromSoftware."},
+  {q:"Qual jogo tem o personagem Gordon Freeman?",o:["Half-Life","Portal","Team Fortress","Left 4 Dead"],a:0,f:"Gordon Freeman, o físico mudo com uma crowbar, é o protagonista de Half-Life (1998) e Half-Life 2 (2004)."},
+  {q:"Em qual jogo os jogadores podem 'importar' personagens do Dragon Age Origins?",o:["Dragon Age 2","Dragon Age: Inquisition","Mass Effect","The Witcher 2"],a:0,f:"Dragon Age 2 e Inquisition permitem importar o estado salvo do Origins para refletir suas escolhas na narrativa."},
+  {q:"Qual empresa japonesa criou o Mario, Zelda e Metroid?",o:["Nintendo","Capcom","Sega","Square Enix"],a:0,f:"Nintendo, fundada em 1889 como fabricante de cartas, tornou-se gigante dos videogames com Shigeru Miyamoto criando Mario em 1981."},
+];
+
+const MUSICA_Q = [
+  {q:"Qual banda lançou o álbum 'Thriller' (1982)?",o:["Não é uma banda — é Michael Jackson","The Jackson 5","Prince","Madonna"],a:0,f:"Thriller de Michael Jackson (1982) é o álbum mais vendido da história com mais de 66 milhões de cópias."},
+  {q:"Qual artista brasileiro é conhecido como 'Rei do Baião'?",o:["Luiz Gonzaga","Chico Buarque","Caetano Veloso","Dorival Caymmi"],a:0,f:"Luiz Gonzaga (1912–1989) popularizou o baião e o xote, sendo chamado de Rei do Baião e Rei do Nordeste."},
+  {q:"Qual é o nome da música mais tocada de todos os tempos (ASCAP)?",o:["Happy Birthday to You","Yesterday (Beatles)","Bohemian Rhapsody","Hotel California"],a:0,f:"Happy Birthday to You é a canção mais reconhecida em inglês no mundo, com milhões de execuções diárias."},
+  {q:"Qual rapper lançou o álbum 'The Life of Pablo' (2016)?",o:["Kanye West","Jay-Z","Drake","Kendrick Lamar"],a:0,f:"Kanye West lançou TLOP com lançamento polêmico via Tidal e atualizações contínuas após o release."},
+  {q:"Qual banda britânica tem os membros Freddie Mercury, Brian May, Roger Taylor e John Deacon?",o:["Queen","The Rolling Stones","The Beatles","Led Zeppelin"],a:0,f:"Queen (1970–1991) é uma das maiores bandas da história. Bohemian Rhapsody é considerado o maior rock de todos os tempos."},
+  {q:"Qual é o nome artístico de Robyn Rihanna Fenty?",o:["Rihanna","Beyoncé","Nicki Minaj","Cardi B"],a:0,f:"Rihanna nasceu em Barbados (1988) e é também empresária de sucesso com a Fenty Beauty e Savage X Fenty."},
+  {q:"Qual artista BR tem o hit 'Vai Malandra'?",o:["Anitta","Ludmilla","Lexa","Mc Kevinho"],a:0,f:"'Vai Malandra' (2017) de Anitta foi o primeiro clipe brasileiro a atingir 100 milhões de views em menos de uma semana."},
+  {q:"Qual álbum do Eminem contém 'Lose Yourself'?",o:["8 Mile (Soundtrack)","The Marshall Mathers LP","Slim Shady LP","Recovery"],a:0,f:"'Lose Yourself' faz parte da trilha sonora do filme 8 Mile (2002) e ganhou o Oscar de Melhor Canção Original."},
+  {q:"Qual artista ficou famoso com 'Shape of You' (2017)?",o:["Ed Sheeran","Sam Smith","Harry Styles","Charlie Puth"],a:0,f:"Ed Sheeran lançou 'Shape of You' no álbum ÷ (Divide). A música quebrou vários recordes no Spotify."},
+  {q:"Qual banda de rock tem o guitarrista Slash?",o:["Guns N' Roses","Metallica","AC/DC","Aerosmith"],a:0,f:"Slash (Saul Hudson) é o guitarrista icônico de Guns N' Roses, conhecido pelo solo de 'November Rain' e 'Sweet Child O' Mine'."},
+  {q:"Qual é a música mais transmitida no Spotify até 2024?",o:["Blinding Lights (The Weeknd)","Shape of You (Ed Sheeran)","Someone Like You (Adele)","Despacito (Luis Fonsi)"],a:0,f:"'Blinding Lights' do The Weeknd (2019) ultrapassou 'Shape of You' como a música mais ouvida na história do Spotify."},
+  {q:"Qual artista brasileira é conhecida como 'Rainha do Axé'?",o:["Ivete Sangalo","Claudinha Leitte","Anitta","Daniela Mercury"],a:0,f:"Ivete Sangalo é apelidada de Rainha do Axé e é um dos maiores nomes do axé music e da música popular brasileira."},
+  {q:"Qual é o verdadeiro nome de Lady Gaga?",o:["Stefani Germanotta","Britney Jean Spears","Alecia Moore","Katheryn Hudson"],a:0,f:"Lady Gaga (nascida em 1986) é Stefani Joanne Angelina Germanotta. Katheryn Hudson é a Katy Perry, Alecia Moore é a Pink."},
+  {q:"Qual banda lançou 'Smells Like Teen Spirit' (1991)?",o:["Nirvana","Pearl Jam","Soundgarden","Alice in Chains"],a:0,f:"'Smells Like Teen Spirit' de Nirvana (1991) é considerado o hino do movimento grunge e da Geração X."},
+  {q:"Qual artista é conhecido como 'O Rei do Pop'?",o:["Michael Jackson","Prince","Elvis Presley","Justin Timberlake"],a:0,f:"Michael Jackson (1958–2009) recebeu o título de 'King of Pop' pela mídia na década de 1980 pela influência sem precedentes na música pop."},
+  {q:"Qual famoso álbum do Pink Floyd tem um prisma na capa?",o:["The Dark Side of the Moon","Wish You Were Here","Animals","The Wall"],a:0,f:"The Dark Side of the Moon (1973) com o prisma de luz é um dos álbuns mais vendidos da história, com mais de 45 milhões de cópias."},
+  {q:"'God's Plan', 'In My Feelings' e 'Hotline Bling' são hits de quem?",o:["Drake","The Weeknd","Future","Lil Wayne"],a:0,f:"Drake (Aubrey Drake Graham) é um dos rappers mais bem-sucedidos da história, com recordes no Spotify e nas paradas."},
+  {q:"Qual artista brasileiro é apelidado de 'O Cantor do Povo'?",o:["Roberto Carlos","Caetano Veloso","Gilberto Gil","Milton Nascimento"],a:0,f:"Roberto Carlos, nascido em 1941, é um dos maiores artistas do Brasil, com décadas de carreira e milhões de fãs."},
+  {q:"Qual é o gênero musical de origem jamaicana com artistas como Bob Marley?",o:["Reggae","Ska","Dancehall","Rocksteady"],a:0,f:"Bob Marley popularizou o reggae mundialmente com álbuns como Exodus e Legend. O reggae tem raízes no ska e rocksteady."},
+  {q:"Qual artista tem o maior número de Grammys ganhos?",o:["Beyoncé","Taylor Swift","Georg Solti","Quincy Jones"],a:0,f:"Beyoncé (com 32 Grammys até 2024) superou Georg Solti (31) e se tornou o artista com mais Grammys da história."},
+];
+
+const HISTORIA_Q = [
+  {q:"Qual é o resultado de 17² − 8² ?",o:["225","209","185","289"],a:0,f:"17²=289, 8²=64. 289−64=225. Ou pela fórmula: (17+8)(17−8) = 25×9 = 225."},
+  {q:"Se log₂(x) = 5, qual é o valor de x?",o:["32","25","16","64"],a:0,f:"log₂(x)=5 significa 2⁵=x, logo x=32."},
+  {q:"Quantos zeros tem o número 100! (fatorial de 100)?",o:["24","20","25","30"],a:0,f:"Pela fórmula de Legendre: ⌊100/5⌋+⌊100/25⌋ = 20+4 = 24 zeros."},
+  {q:"Qual é a derivada de f(x) = x³ − 4x² + 7x − 2 ?",o:["3x²−8x+7","3x²−4x+7","x³−8x+7","3x²−8x−2"],a:0,f:"Derivando termo a termo: 3x²−8x+7. Regra da potência: d/dx(xⁿ)=n·xⁿ⁻¹."},
+  {q:"Se uma PA tem a₁=3 e razão r=5, qual é o 10º termo?",o:["48","45","53","50"],a:0,f:"aₙ = a₁+(n−1)·r → a₁₀ = 3+9×5 = 3+45 = 48."},
+  {q:"Qual é a soma dos ângulos internos de um polígono de 9 lados?",o:["1260°","1440°","1080°","900°"],a:0,f:"S=(n−2)×180 = 7×180 = 1260°."},
+  {q:"Resolva: 2x+3y=12 e x−y=1. Qual é o valor de x?",o:["3","2","4","5"],a:0,f:"De x=y+1, substituindo: 2(y+1)+3y=12 → 5y=10 → y=2 → x=3."},
+  {q:"Qual é a integral de ∫(2x+3)dx ?",o:["x²+3x+C","2x²+3x+C","x²+3+C","2x+C"],a:0,f:"∫2x dx + ∫3 dx = x²+3x+C. Regra da potência inversa."},
+  {q:"Se P(A)=0,4 e P(B)=0,3 e são independentes, qual é P(A∩B)?",o:["0,12","0,7","0,1","0,04"],a:0,f:"Eventos independentes: P(A∩B)=P(A)×P(B)=0,4×0,3=0,12."},
+  {q:"Qual é o valor de sen(60°) × cos(30°) + cos(60°) × sen(30°)?",o:["1","√3/2","√2/2","1/2"],a:0,f:"sen(60°+30°)=sen(90°)=1. É a fórmula de adição: sen(A+B)=senAcosB+cosAsenB."},
+  {q:"Uma PG tem a₁=2 e q=3. Qual é a soma dos 4 primeiros termos?",o:["80","78","82","72"],a:0,f:"Termos: 2,6,18,54. Soma=80. Ou Sₙ=a₁(qⁿ−1)/(q−1)=2(81−1)/2=80."},
+  {q:"Qual é o número de diagonais de um polígono convexo com 8 lados?",o:["20","16","24","28"],a:0,f:"d = n(n−3)/2 = 8×5/2 = 20 diagonais."},
+  {q:"Se f(x)=2^x, qual é f(f(3)) ?",o:["256","512","64","128"],a:0,f:"f(3)=2³=8. f(8)=2⁸=256."},
+  {q:"Quantas soluções reais tem x² + 4x + 5 = 0?",o:["Nenhuma","Uma","Duas","Infinitas"],a:0,f:"Δ=b²−4ac=16−20=−4 < 0. Discriminante negativo → sem raízes reais."},
+  {q:"Qual é o volume de uma esfera de raio 3 cm? (use π≈3,14)",o:["113,04 cm³","37,68 cm³","150,72 cm³","84,78 cm³"],a:0,f:"V=(4/3)πr³=(4/3)×3,14×27=(4/3)×84,78=113,04 cm³."},
+  {q:"Se um triângulo tem lados 5, 12 e 13, qual é a sua área?",o:["30","60","26","65"],a:0,f:"É um triângulo retângulo (5²+12²=13²). Área=base×altura/2=5×12/2=30."},
+  {q:"Qual é o módulo do complexo z = 3 + 4i ?",o:["5","7","√7","25"],a:0,f:"|z|=√(3²+4²)=√(9+16)=√25=5. Teorema de Pitágoras no plano complexo."},
+  {q:"Quantos anagramas tem a palavra 'AMOR'?",o:["24","12","6","48"],a:0,f:"4 letras todas distintas: 4!=4×3×2×1=24 anagramas."},
+  {q:"Qual é o limite de (x²−1)/(x−1) quando x→1?",o:["2","1","0","Indefinido"],a:0,f:"Fatorando: (x+1)(x−1)/(x−1)=x+1. Quando x→1: 1+1=2."},
+  {q:"Em uma urna com 4 bolas vermelhas e 6 azuis, qual é a prob. de tirar 2 vermelhas seguidas SEM reposição?",o:["2/15","4/25","1/6","2/9"],a:0,f:"P=4/10 × 3/9 = 12/90 = 2/15."},
+];
+
+const MATEMATICA_FACIL = [
+  {q:"Quanto é 15% de 200?",o:["30","25","35","20"],a:0,f:"15% de 200 = 200 × 0,15 = 30."},
+  {q:"Qual é a raiz quadrada de 144?",o:["12","11","13","14"],a:0,f:"√144 = 12, pois 12×12=144."},
+  {q:"Se x + 7 = 15, qual é o valor de x?",o:["8","6","9","7"],a:0,f:"x = 15 − 7 = 8."},
+  {q:"Qual é a média de 10, 20 e 30?",o:["20","15","25","18"],a:0,f:"(10+20+30)/3 = 60/3 = 20."},
+  {q:"Quanto é 3⁴?",o:["81","64","27","243"],a:0,f:"3⁴ = 3×3×3×3 = 81."},
+  {q:"Em uma PA com a₁=2 e r=3, qual é o 5º termo?",o:["14","12","16","10"],a:0,f:"a₅ = 2 + 4×3 = 2+12 = 14."},
+  {q:"Qual é o MMC de 4 e 6?",o:["12","8","24","6"],a:0,f:"MMC(4,6) = 12. Múltiplos de 4: 4,8,12... de 6: 6,12... Primeiro comum: 12."},
+  {q:"Um triângulo tem ângulos de 60° e 70°. Qual é o terceiro ângulo?",o:["50°","40°","60°","80°"],a:0,f:"Soma dos ângulos = 180°. 180−60−70 = 50°."},
+  {q:"Qual é a área de um retângulo de 8cm × 5cm?",o:["40 cm²","26 cm²","13 cm²","45 cm²"],a:0,f:"A = base × altura = 8×5 = 40 cm²."},
+  {q:"Quanto é 2/3 + 1/4?",o:["11/12","3/7","5/6","7/12"],a:0,f:"2/3 + 1/4 = 8/12 + 3/12 = 11/12."},
+  {q:"Se um produto custava R$80 e teve 25% de desconto, quanto ficou?",o:["R$60","R$55","R$65","R$70"],a:0,f:"25% de 80 = 20. 80−20 = R$60."},
+  {q:"Qual é o perímetro de um quadrado de lado 7cm?",o:["28 cm","21 cm","49 cm","14 cm"],a:0,f:"P = 4×lado = 4×7 = 28 cm."},
+  {q:"Simplifique: 18/24",o:["3/4","2/3","6/8","9/12"],a:0,f:"MDC(18,24)=6. 18÷6=3, 24÷6=4. Resultado: 3/4."},
+  {q:"Quanto é 5! (fatorial de 5)?",o:["120","60","24","720"],a:0,f:"5! = 5×4×3×2×1 = 120."},
+  {q:"Se y = 2x + 3 e x = 4, qual é y?",o:["11","8","10","13"],a:0,f:"y = 2×4+3 = 8+3 = 11."},
+  {q:"Qual é o volume de um cubo de aresta 4cm?",o:["64 cm³","48 cm³","16 cm³","32 cm³"],a:0,f:"V = aresta³ = 4³ = 64 cm³."},
+  {q:"Em uma PG com a₁=3 e q=2, qual é o 4º termo?",o:["24","12","48","16"],a:0,f:"a₄ = 3×2³ = 3×8 = 24."},
+  {q:"Quantos números primos existem entre 1 e 20?",o:["8","6","9","7"],a:0,f:"2,3,5,7,11,13,17,19 — são 8 primos entre 1 e 20."},
+  {q:"Qual é o resultado de (3+5)²?",o:["64","56","16","34"],a:0,f:"(3+5)² = 8² = 64. Primeiro resolve o parêntese, depois eleva."},
+  {q:"A soma dos 10 primeiros números naturais (1 a 10) é:",o:["55","50","45","60"],a:0,f:"S = n(n+1)/2 = 10×11/2 = 55. Ou somando: 1+2+...+10=55."},
+];
+
+const CIENCIA_Q = [
+  {q:"Qual é a velocidade da luz no vácuo?",o:["299.792 km/s","150.000 km/s","600.000 km/s","3.000 km/s"],a:0,f:"A velocidade da luz é aproximadamente 299.792 km/s (ou ~300.000 km/s). Einstein mostrou que nada no universo viaja mais rápido."},
+  {q:"Quantos ossos tem o corpo humano adulto?",o:["206","212","198","225"],a:0,f:"O corpo humano adulto tem 206 ossos. Bebês nascem com cerca de 270, que se fundem com o crescimento."},
+  {q:"Qual é o elemento mais abundante no universo?",o:["Hidrogênio","Hélio","Oxigênio","Carbono"],a:0,f:"O Hidrogênio representa cerca de 75% da massa de toda a matéria bariônica do universo."},
+  {q:"Qual cientista formulou a Teoria da Relatividade?",o:["Albert Einstein","Isaac Newton","Nikola Tesla","Max Planck"],a:0,f:"Albert Einstein publicou a Teoria da Relatividade Especial em 1905 e a Geral em 1915, revolucionando a física."},
+  {q:"Quantos planetas existem no Sistema Solar (definição oficial IAU)?",o:["8","9","10","7"],a:0,f:"Após a reclassificação de Plutão em 2006 como 'planeta anão', o Sistema Solar tem 8 planetas: Mercúrio, Vênus, Terra, Marte, Júpiter, Saturno, Urano e Netuno."},
+  {q:"Qual é a fórmula química da água?",o:["H₂O","CO₂","NaCl","O₂"],a:0,f:"H₂O: dois átomos de hidrogênio e um de oxigênio. A água cobre 71% da superfície da Terra."},
+  {q:"Qual gás as plantas absorvem para fazer fotossíntese?",o:["CO₂ (Dióxido de carbono)","O₂ (Oxigênio)","N₂ (Nitrogênio)","CH₄ (Metano)"],a:0,f:"As plantas absorvem CO₂ e liberam O₂ durante a fotossíntese, usando a energia da luz solar para produzir glicose."},
+  {q:"O DNA humano está organizado em quantos pares de cromossomos?",o:["23","46","22","48"],a:0,f:"Humanos têm 23 pares (46 cromossomos no total). 22 são autossomos e 1 par é sexual (XX feminino, XY masculino)."},
+  {q:"Qual é o maior planeta do Sistema Solar?",o:["Júpiter","Saturno","Netuno","Urano"],a:0,f:"Júpiter é o maior planeta, com massa 318 vezes maior que a Terra. A Grande Mancha Vermelha é uma tempestade que dura séculos."},
+  {q:"O que é um 'Buraco Negro'?",o:["Região com gravidade tão intensa que nem a luz escapa","Um portal para outro universo","Uma estrela morta e fria","Um vácuo no espaço"],a:0,f:"Buracos negros têm densidade e gravidade extremas. A primeira foto de um foi capturada em 2019 (M87*) pelo Event Horizon Telescope."},
+  {q:"Qual é o número atômico do Ouro (Au)?",o:["79","47","29","197"],a:0,f:"O Ouro tem número atômico 79 (79 prótons). O número 197 é sua massa atômica. A prata tem 47 e o cobre 29."},
+  {q:"Qual vírus causou a pandemia de 2020?",o:["SARS-CoV-2 (COVID-19)","H1N1","Ebola","MERS-CoV"],a:0,f:"O SARS-CoV-2 causou a COVID-19, pandemia declarada pela OMS em março de 2020, afetando bilhões de pessoas globalmente."},
+  {q:"Qual é a temperatura de fusão do ferro?",o:["1538°C","800°C","1200°C","2500°C"],a:0,f:"O ferro funde a 1538°C. Essa propriedade é fundamental para a metalurgia e a produção de aço."},
+  {q:"O que é a 'Lei da Gravidade Universal' de Newton?",o:["Todo objeto com massa atrai outros objetos com massa","Objetos em queda têm aceleração constante","A força é proporcional à massa e aceleração","Cada ação tem uma reação oposta e igual"],a:0,f:"A Lei da Gravitação Universal (F = Gm₁m₂/r²) descreve como massas se atraem mutuamente. Publicada nos Principia Mathematica em 1687."},
+  {q:"Qual é a camada da atmosfera que nos protege da radiação UV?",o:["Estratosfera (camada de ozônio)","Troposfera","Mesosfera","Termosfera"],a:0,f:"A camada de ozônio (O₃) na estratosfera absorve a maior parte da radiação UV-B e UV-C nociva emitida pelo Sol."},
+];
+
+// ══════════════════════════════════════════════════════
+//  STATE & SAVE
+// ══════════════════════════════════════════════════════
+function lsGet(k, def) { try { return localStorage.getItem(k) ?? def; } catch(e) { return def; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch(e) {} }
+
+let totalScore = parseInt(lsGet('aq_score','0'));
+let gamesPlayed = parseInt(lsGet('aq_games','0'));
+let totalWins = parseInt(lsGet('aq_wins','0'));
+let dailyState = JSON.parse(lsGet('aq_daily','null')) || null;
+
+const DEFAULT_PLAYLIST = [
+  'https://www.youtube.com/watch?v=X9y5ka70Qto',
+  'https://www.youtube.com/watch?v=E_PlKSSGYtg'
+];
+let playlist = JSON.parse(lsGet('aq_playlist', JSON.stringify(DEFAULT_PLAYLIST)));
+let currentTrack = parseInt(lsGet('aq_track','0'));
+let musicPlaying = false;
+let musicVolume = 0.2;
+
+function saveState() {
+  lsSet('aq_score', totalScore);
+  lsSet('aq_games', gamesPlayed);
+  lsSet('aq_wins', totalWins);
+  lsSet('aq_playlist', JSON.stringify(playlist));
+  lsSet('aq_track', currentTrack);
+  document.getElementById('total-score').textContent = totalScore;
+  document.getElementById('games-played').textContent = gamesPlayed;
+  document.getElementById('total-wins').textContent = totalWins;
+}
+saveState();
+
+// ══════════════════════════════════════════════════════
+//  AUDIO (Web Audio API — simple sfx)
+// ══════════════════════════════════════════════════════
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return audioCtx;
+}
+function playTone(freq, type, dur, vol=0.3) {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.type = type; osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    gain.gain.setValueAtTime(vol, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
+    osc.start(); osc.stop(ctx.currentTime + dur);
+  } catch(e) {}
+}
+function sfxClick()   { playTone(440,'sine',0.08,0.2); }
+function sfxCorrect() { playTone(523,'sine',0.1,0.3); setTimeout(()=>playTone(659,'sine',0.15,0.3),80); setTimeout(()=>playTone(784,'sine',0.2,0.3),160); }
+function sfxWrong()   { playTone(220,'sawtooth',0.2,0.25); setTimeout(()=>playTone(180,'sawtooth',0.25,0.2),120); }
+function sfxPoints()  { playTone(880,'sine',0.06,0.15); setTimeout(()=>playTone(1046,'sine',0.08,0.12),60); }
+function sfxRoulette(){ playTone(300 + Math.random()*400,'square',0.05,0.2); }
+
+// ══════════════════════════════════════════════════════
+//  YOUTUBE PLAYER (iframe API via postMessage)
+// ══════════════════════════════════════════════════════
+function ytIdFromUrl(url) {
+  const m = url.match(/(?:youtu\.be\/|v=|v\/|embed\/|shorts\/)([\w-]{11})/);
+  return m ? m[1] : null;
 }
 
-function onPlayerReady(event){
-  setTimeout(()=>{
-    event.target.playVideo();
-    showDialogue(0, initialDialogues, true, ()=>{});
-  }, 1500);
+function loadTrack(idx) {
+  if (!playlist.length) return;
+  currentTrack = ((idx % playlist.length) + playlist.length) % playlist.length;
+  saveState();
+  const id = ytIdFromUrl(playlist[currentTrack]);
+  if (!id) { nextTrack(); return; }
+  const iframe = document.getElementById('yt-player');
+  // Use youtube nocookie embed with autoplay, mute=0
+  iframe.src = `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&loop=0&controls=0&enablejsapi=1&origin=${encodeURIComponent(location.origin || 'null')}`;
+  document.getElementById('music-now-playing').textContent = `♪ Faixa ${currentTrack+1}/${playlist.length}: ${playlist[currentTrack].slice(0,50)}`;
+  document.getElementById('music-play-btn').classList.add('active');
+  musicPlaying = true;
+  // After approx song time try next (fallback — 4 min)
+  clearTimeout(window._ytTimer);
+  window._ytTimer = setTimeout(() => nextTrack(), 4 * 60 * 1000);
 }
 
-const tag = document.createElement('script');
-tag.src = "https://www.youtube.com/iframe_api";
-const firstScriptTag = document.getElementsByTagName('script')[0];
-firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-
-function showCutscene(dlgs, fadeOut, onEnd){
-  cutsceneActive = true;
-  document.getElementById("cutscene").style.display="flex";
-  document.getElementById("cutscene").style.opacity=1;
-  charactersEl.innerHTML = '<div class="char">👺</div><div class="char">🏌️‍♂️</div>';
-  player.playVideo();
-  showDialogue(0, dlgs, fadeOut, onEnd);
+function toggleMusic() {
+  sfxClick();
+  if (!playlist.length) { showToast('Adicione músicas à playlist!'); return; }
+  if (!musicPlaying) {
+    loadTrack(currentTrack);
+  } else {
+    document.getElementById('yt-player').src = '';
+    document.getElementById('music-play-btn').classList.remove('active');
+    document.getElementById('music-now-playing').textContent = 'Música pausada';
+    musicPlaying = false;
+    clearTimeout(window._ytTimer);
+  }
 }
 
-function showDialogue(i, dlgs, fadeOut, onEnd){
-  if(i>=dlgs.length){
-    if(fadeOut){
-      document.getElementById("cutscene").style.opacity=0;
-      setTimeout(()=>{
-        player.stopVideo();
-        document.getElementById("cutscene").style.display="none";
-        cutsceneActive=false;
-        onEnd();
-      },4000);
-    } else { onEnd(); }
+function nextTrack() { sfxClick(); loadTrack(currentTrack + 1); }
+function prevTrack() { sfxClick(); loadTrack(currentTrack - 1); }
+
+function addTrack() {
+  sfxClick();
+  const input = document.getElementById('music-url-input');
+  const url = input.value.trim();
+  if (!url) return;
+  if (!ytIdFromUrl(url)) { showToast('URL inválida! Use um link do YouTube.'); return; }
+  if (playlist.includes(url)) { showToast('Já está na playlist!'); return; }
+  playlist.push(url);
+  saveState();
+  renderPlaylist();
+  input.value = '';
+  showToast('✓ Música adicionada!');
+}
+
+function removeTrack(idx) {
+  sfxClick();
+  if (idx === currentTrack && musicPlaying) {
+    document.getElementById('yt-player').src = '';
+    musicPlaying = false;
+  }
+  playlist.splice(idx, 1);
+  if (currentTrack >= playlist.length) currentTrack = 0;
+  saveState();
+  renderPlaylist();
+}
+
+function renderPlaylist() {
+  const pl = document.getElementById('music-playlist');
+  if (!playlist.length) { pl.innerHTML = '<div style="font-size:11px;color:var(--text2);padding:4px 0">Playlist vazia</div>'; return; }
+  pl.innerHTML = playlist.map((url, i) => {
+    const id = ytIdFromUrl(url);
+    const active = i === currentTrack && musicPlaying;
+    return `<div class="music-playlist-item" style="${active ? 'color:var(--accent)' : ''}">
+      <span style="font-size:10px;color:var(--text2);min-width:18px">${i+1}.</span>
+      <span class="pl-url" onclick="sfxClick();loadTrack(${i})" style="cursor:pointer;${active?'color:var(--accent)':''}">${url.slice(0,55)}...</span>
+      <span class="pl-del" onclick="removeTrack(${i})">✕</span>
+    </div>`;
+  }).join('');
+}
+renderPlaylist();
+
+// Listen for youtube end event
+window.addEventListener('message', (e) => {
+  try {
+    const data = JSON.parse(e.data);
+    if (data.event === 'onStateChange' && data.info === 0) nextTrack();
+  } catch(e) {}
+});
+
+// ══════════════════════════════════════════════════════
+//  DAILY CHALLENGES
+// ══════════════════════════════════════════════════════
+const CHALLENGE_POOL = [
+  {icon:'⛏️', title:'Mestre Minecraft', desc:'Complete o Quiz Minecraft com 80%+', game:'minecraft', goal:'score80'},
+  {icon:'🎬', title:'Cinéfilo', desc:'Acerte 10+ perguntas de Filmes', game:'filmes', goal:'correct10'},
+  {icon:'🐆', title:'Naturalista', desc:'Monte 8 animais corretamente', game:'animais', goal:'correct8'},
+  {icon:'🎮', title:'Gamer Pro', desc:'Complete Games com 70%+', game:'games', goal:'score70'},
+  {icon:'🎵', title:'DJ Master', desc:'Acerte 12+ perguntas de Música', game:'musica', goal:'correct12'},
+  {icon:'🧮', title:'Calculista', desc:'Complete Matemática sem errar', game:'historia', goal:'perfect'},
+  {icon:'🔬', title:'Cientista', desc:'Acerte 10+ perguntas de Ciência', game:'ciencia', goal:'correct10'},
+  {icon:'🔤', title:'Wordler', desc:'Adivinhe a palavra na 1ª ou 2ª tentativa', game:'wordle', goal:'fast'},
+  {icon:'⚡', title:'Relâmpago', desc:'Complete qualquer quiz em menos de 2 minutos', game:'any', goal:'fast2min'},
+  {icon:'💎', title:'Perfeição', desc:'Complete qualquer quiz com 100%', game:'any', goal:'perfect'},
+  {icon:'🏃', title:'Sequência', desc:'Jogue 3 quizzes diferentes seguidos', game:'any', goal:'streak3'},
+  {icon:'🌟', title:'Escore Alto', desc:'Ganhe 150+ pontos em uma partida', game:'any', goal:'pts150'},
+];
+
+const EXTRA_CHALLENGES = [
+  'Ganhe 200 pontos para pontuação extra! 🏆',
+  'Complete 2 desafios hoje para bônus duplo! ⚡',
+  'Acerte 30 perguntas no total hoje para +100pts! 🎯',
+  'Jogue todos os 8 minigames para troféu secreto! 👑',
+  'Não erre nenhuma resposta nos próximos 2 quizzes! 💎',
+];
+
+function rollDailyChallenges() {
+  sfxClick();
+  const overlay = document.getElementById('roulette-overlay');
+  overlay.classList.add('show');
+  document.getElementById('roulette-close-btn').style.display = 'none';
+
+  const pool = shuffle([...CHALLENGE_POOL]);
+  const chosen = pool.slice(0, 3);
+  const extra = EXTRA_CHALLENGES[Math.floor(Math.random() * EXTRA_CHALLENGES.length)];
+
+  let spinCount = 0;
+  const maxSpins = 24;
+  const spinEl = document.getElementById('roulette-spin-label');
+  const resultEl = document.getElementById('roulette-result');
+  resultEl.textContent = '';
+
+  function spinStep() {
+    sfxRoulette();
+    const rand = CHALLENGE_POOL[Math.floor(Math.random() * CHALLENGE_POOL.length)];
+    spinEl.textContent = rand.icon + ' ' + rand.title;
+    spinCount++;
+    const delay = 60 + spinCount * 12;
+    if (spinCount < maxSpins) {
+      setTimeout(spinStep, delay);
+    } else {
+      // reveal final
+      spinEl.textContent = chosen.map(c => c.icon).join('  ') ;
+      resultEl.textContent = chosen.map(c => c.title).join(' · ');
+      sfxCorrect();
+
+      dailyState = {
+        date: new Date().toDateString(),
+        challenges: chosen,
+        extra: extra,
+        completed: []
+      };
+      lsSet('aq_daily', JSON.stringify(dailyState));
+      document.getElementById('roulette-close-btn').style.display = 'inline-block';
+    }
+  }
+  spinStep();
+}
+
+function closeRoulette() {
+  sfxClick();
+  document.getElementById('roulette-overlay').classList.remove('show');
+  renderDailyChallenges();
+}
+
+function renderDailyChallenges() {
+  const container = document.getElementById('daily-challenges');
+  const extraEl = document.getElementById('daily-extra');
+  if (!dailyState) {
+    container.innerHTML = '<div style="font-size:12px;color:var(--text2);padding:14px">Clique em "Rolar Roleta" para gerar seus desafios do dia!</div>';
+    extraEl.style.display = 'none';
     return;
   }
-  const d=dlgs[i];
-  dialogueEl.style.opacity=0;
-  setTimeout(()=>{
-    dialogueEl.innerHTML=`<span style="color:${d.color}">${d.text}</span>`;
-    dialogueEl.style.opacity=1;
-  },800);
-  setTimeout(()=>showDialogue(i+1, dlgs, fadeOut, onEnd),8000);
+  container.innerHTML = dailyState.challenges.map((c, i) => {
+    const done = dailyState.completed.includes(i);
+    return `<div class="daily-card ${done?'completed':''}">
+      <div class="daily-card-icon">${c.icon}</div>
+      <div class="daily-card-title">${c.title}</div>
+      <div class="daily-card-desc">${c.desc}</div>
+    </div>`;
+  }).join('');
+  extraEl.style.display = 'flex';
+  extraEl.innerHTML = `⭐ DESAFIO EXTRA — ${dailyState.extra}`;
+}
+renderDailyChallenges();
+
+// ══════════════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════════════
+function goMenu() {
+  sfxClick();
+  document.getElementById('menu').style.display = 'flex';
+  document.getElementById('game-screen').style.display = 'none';
+  saveState();
+  renderPlaylist();
+  renderDailyChallenges();
 }
 
-document.addEventListener("keydown",e=>{
-  if(e.key===" " && cutsceneActive){
-    cutsceneActive=false;
-    document.getElementById("cutscene").style.display="none";
-    if(player)player.stopVideo();
-  }
-});
+function startGame(type) {
+  sfxClick();
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('game-screen').style.display = 'flex';
+  if (type === 'wordle') initWordle();
+  else if (type === 'animais') initAnimais();
+  else if (type === 'historia') showMathDiffSelect();
+  else initQuiz(type);
+}
 
-const tooltip = document.getElementById("tooltip");
-document.querySelectorAll('.upgrade').forEach(el => {
-  el.onmouseover = () => {
-    if(el.classList.contains('locked')) return;
-    let id = el.id; let desc = '';
-    if(id=='u1'){
-      let normal = (3 + ballValueLevel*3) * ballMultiplier;
-      let lucky = luckyBought ? normal*10 : 'Não disponível';
-      desc = `Bolas Valiosas: Aumenta em 3 o valor de bolas bloqueadas.<br>Valor atual: Bola normal ${normal}, Bola sortuda ${lucky}`;
-    }else if(id=='u2'){
-      let interval = Math.max(500,2200 - fireRateLevel*70);
-      desc = `Disparo Rápido: Abaixa o cooldown de bolas disparadas.<br>Nível atual: ${fireRateLevel}, Cooldown: ${interval}ms`;
-    }else if(id=='u3'){
-      desc = `Dobro Desastre: A cada tiro sai uma bola extra.<br>Bolas por tiro: ${1 + ballsPerShotLevel}`;
-    }else if(id=='u4'){
-      let size = Math.round(basePaddleH * (1 + paddleSizeLevel*0.15));
-      desc = `Maior Defesa: Aumenta em 15% o tamanho da raquete.<br>Tamanho atual: ${size}px`;
-    }else if(id=='u5'){
-      desc = `Escudo Durável: Aumenta a vida máxima do escudo.<br>Blocos máximos: ${maxShieldBlocks}`;
-    }else if(id=='u6'){
-      desc = `Quantidade Máxima de Bolas: Aumenta em 50 o max de bolas.<br>Máximo atual: ${maxBalls}`;
-    }else if(id=='t1'){
-      desc = `Dobro Perigo: Adiciona um segundo canhão.<br>Status: ${doubleDangerBought ? 'Comprado' : 'Não comprado'}`;
-    }else if(id=='t2'){
-      desc = `Raquetear: Clique com botão esquerdo para lançar uma bola stun a cada 35s.<br>Status: ${raquetearBought ? 'Comprado' : 'Não comprado'}`;
-    }else if(id=='t3'){
-      desc = `Mão Via Dupla: Adiciona uma raquete auxiliar que tem a mesma vida do seu escudo.<br>Status: ${maoBought ? 'Comprado' : 'Não comprado'}`;
-    }else if(id=='t4'){
-      desc = `Bola Sortuda: Desbloqueia bolas raras que são rápidas e valem x10 mais.<br>Status: ${luckyBought ? 'Comprado' : 'Não comprado'}`;
-    }else if(id=='t5'){
-      desc = `Escudo Reforçado: Quando destruído o escudo elimina todas as bolas no campo.<br>Status: ${reforcadoBought ? 'Comprado' : 'Não comprado'}`;
-    }else if(id=='t6'){
-      desc = `Raquete Portátil: Ao bloquear 102 bolas solte uma raquete que quica e destroi.<br>Status: ${raquetePortatilBought ? 'Comprado' : 'Não comprado'}`;
-    }else if(id=='t7'){
-      desc = `Bolas Bem Valiosas: Dobra o valor de todas as bolas permanentemente.<br>Status: ${bolasBemValiosasBought ? 'Comprado' : 'Não comprado'}`;
-    }else if(id=='t8'){
-      desc = `Compactação Total: Troque metade de velocidade e quantidade de tiros por valor dobrado das bolas (compre em um nivel alto).<br>Status: ${compactacaoUniversalBought ? 'Comprado' : 'Não comprado'}`;
-    }else if(id=='t9'){
-      desc = `Power Bolas: Chance de power balls.<br>Status: ${powerBolasBought ? 'Comprado' : 'Não comprado'}`;
-    }
-    tooltip.innerHTML = desc;
-    tooltip.style.display='block';
-    let rect = el.getBoundingClientRect();
-    tooltip.style.left = (rect.left + rect.width/2 - tooltip.offsetWidth/2) + 'px';
-    if(el.parentElement.id === 'ui-top'){
-      tooltip.style.top = (rect.bottom + 10) + 'px';
-    } else {
-      tooltip.style.top = (rect.top - tooltip.offsetHeight - 10) + 'px';
-    }
-  };
-  el.onmouseout = () => {tooltip.style.display='none';};
-});
+// ══════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1900);
+}
 
-let lastFrameTime=0;
-const fps=70;
-const frameDuration=1000/fps;
-
-const cannonPhrases = [
-  "🏌️‍♂️: Eu ainda estou aquecendo.",
-  "🏌️‍♂️: Cada uma dessas é um valor de um iphone",
-  "🏌️‍♂️: Esqueceu de rebater aquele ein?",
-  "🏌️‍♂️: Se não fosse a raquete amiga já ia estar sem raquetadas.",
-  "🏌️‍♂️: Você acha que isso é difícil? Eu nem comecei de verdade ainda.",
-  "🏌️‍♂️: Cada bola que passa é ponto meu, fica esperto.",
-  "🏌️‍♂️: Hm… quase perdeu essa, hein.",
-  "🏌️‍♂️: Vamos ver até onde essa raquete aguenta.",
-  "🏌️‍♂️: Se piscar, já era outra bola vindo.",
-  "🏌️‍♂️: Heh, estou só calibrando a mira.",
-  "🏌️‍♂️: Quanto mais você rebate, mais eu disparo.",
-  "🏌️‍♂️: Essa próxima vai ser rápida, prepara.",
-  "🏌️‍♂️: Eu adoro quando o jogo fica caótico.",
-  "🏌️‍♂️: Será que você aguenta até a próxima fase?"
+// ══════════════════════════════════════════════════════
+//  WORDLE
+// ══════════════════════════════════════════════════════
+let wWord, wGuesses, wCurrentRow, wCurrentCol, wGameOver, wKeyState;
+const KB_ROWS = [
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['ENTER','Z','X','C','V','B','N','M','⌫']
 ];
-let lastCannonTalk = 0;
-let currentPhraseIndex = 0;
 
-function loop(){
-  const now=performance.now();
-  if(now-lastFrameTime<frameDuration){requestAnimationFrame(loop);return;}
-  lastFrameTime=now;
-
-  if(cutsceneActive || gamePhase >=4){requestAnimationFrame(loop);return;}
-
-  let time=Date.now();
-
-  if(powerUpActive && time > powerUpEndTime){
-    powerUpActive=false; powerUpType='';
+function initWordle() {
+  document.getElementById('game-title').textContent = 'WORDLE BR';
+  document.getElementById('lives-display').textContent = '';
+  const eligible = WORDS.filter(w => w.length >= 4 && w.length <= 6);
+  wWord = eligible[Math.floor(Math.random() * eligible.length)];
+  const len = wWord.length;
+  wGuesses = []; wCurrentRow = 0; wCurrentCol = 0; wGameOver = false; wKeyState = {};
+  const hint = WORDLE_HINTS[wWord] || 'Adivinhe a palavra!';
+  const ga = document.getElementById('game-area');
+  ga.innerHTML = `
+    <div class="wordle-wrap">
+      <div class="wordle-hint">💡 Dica: <em>${hint}</em></div>
+      <div class="wordle-counter">Palavra com <strong>${len}</strong> letras — 5 tentativas</div>
+      <div class="wordle-grid" id="wgrid"></div>
+      <div class="keyboard" id="wkb"></div>
+    </div>`;
+  const grid = document.getElementById('wgrid');
+  for (let r = 0; r < 5; r++) {
+    const row = document.createElement('div');
+    row.className = 'wordle-row'; row.id = `row-${r}`;
+    for (let c = 0; c < len; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'wordle-cell'; cell.id = `cell-${r}-${c}`;
+      row.appendChild(cell);
+    }
+    grid.appendChild(row);
   }
-
-  let isParalyzed = time < paralyzedUntil;
-
-  if(gamePhase===0 && score >=1000000){gamePhase=1; pauseStart=time;}
-  if(gamePhase===1 && time - pauseStart >10000){
-    gamePhase=2;
-    showCutscene(midDialogues, true, ()=>{
-      ballValueLevel=0; fireRateLevel=0; ballsPerShotLevel=0; paddleSizeLevel=0; shieldLevel=0; maxBallsLevel=0;
-      maxBalls=100; maxShieldBlocks=5; helperMaxRebounds=10; costs=[40,60,120,80,100,200]; updateCosts();
-      document.querySelectorAll('.upgrade').forEach(el=>{el.classList.add('locked'); el.onclick=()=>{playNoMoney();}});
-      player.loadVideoById(bossVideoId);
-      setTimeout(()=>{player.playVideo();},100);
-      bossStartTime=Date.now(); bossMode=true; doubleDangerBought=false; gamePhase=3;
+  highlightRow(0);
+  const kb = document.getElementById('wkb');
+  KB_ROWS.forEach(rowKeys => {
+    const rowEl = document.createElement('div'); rowEl.className = 'kb-row';
+    rowKeys.forEach(k => {
+      const btn = document.createElement('button');
+      btn.className = 'kb-key' + (k.length > 1 ? ' wide' : '');
+      btn.textContent = k; btn.dataset.key = k;
+      btn.onclick = () => { sfxClick(); handleKey(k); };
+      rowEl.appendChild(btn);
     });
-    requestAnimationFrame(loop); return;
-  }
-
-  if(gamePhase===3 && score >=2000000){
-    gamePhase=4; player.stopVideo(); balls=[]; specialBalls=[]; shuttles=[]; particles=[]; scoreTexts=[]; shockwaves=[];
-    player.loadVideoById(initialVideoId); player.stopVideo();
-    showCutscene(endDialogues, false, ()=>{
-      player.stopVideo();
-      charactersEl.innerHTML='<div class="char" style="font-size:110px; position:relative;"><span style="position:absolute; top:-110px; left:50%; transform:translateX(-50%); font-size:110px;">👑</span>👺</div>';
-      dialogueEl.style.opacity=0;
-      setTimeout(()=>{
-        dialogueEl.innerHTML=`<span style="color:#f44">Eu consegui... rebati um total de ${totalBallsRebounded} bolas e gastei um total de ${totalPointsSpent} raquetadas... EU SOU O MELHOR RAQUETEADOR!</span>`;
-        dialogueEl.style.opacity=1;
-      },800);
-    });
-    requestAnimationFrame(loop); return;
-  }
-
-  if(!isParalyzed && !bossMode){ cannonPhase += 0.023; }
-  if(bossMode){ cannonPhase += 0.08; }
-
-  cannonY = H/2 + Math.sin(cannonPhase * (bossMode ? 4 : 1)) * (H*0.33);
-  if(doubleDangerBought){ cannonY2 = H/2 + Math.sin(cannonPhase * (bossMode ? 4 : 1) + Math.PI) * (H*0.33); }
-  if(bossMode){cannonY = H/2;}
-
-  ctx.fillStyle = "#0a0e1a"; ctx.fillRect(0,0,W,H);
-  ctx.fillStyle = "#11151f"; ctx.fillRect(0,H*0.1,W,H*0.8);
-  ctx.strokeStyle = "#1a2535"; ctx.lineWidth=1;
-  for(let x=40;x<W;x+=80){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-
-  paddleH = basePaddleH * (1 + paddleSizeLevel*0.15);
-  paddleY += (mouseY - (paddleY+paddleH/2)) * 0.18;
-  paddleY = Math.max(0, Math.min(H-paddleH, paddleY));
-
-  if(shieldActive && !powerUpActive){
-    ctx.fillStyle = reforcadoBought ? "#f48a" : "#48fa";
-    ctx.fillRect(12,0,12,H);
-    let barH = (H * shieldBlocks / maxShieldBlocks);
-    ctx.fillStyle = `hsl(${shieldBlocks/maxShieldBlocks*120}, 80%, 50%)`;
-    ctx.fillRect(13, H-barH, 10, barH);
-  } else if(powerUpActive && powerUpType==='immortal'){
-    ctx.fillStyle = "#ff0"; ctx.fillRect(12,0,12,H);
-  } else if(powerUpActive){
-    ctx.fillStyle = "#fff"; ctx.fillRect(12,0,12,H);
-  }
-
-  ctx.fillStyle = "#5af";
-  ctx.beginPath(); ctx.roundRect(40, paddleY, paddleW, paddleH, 12); ctx.fill();
-
-  if(raquetePortatilBought){
-    ctx.font = "20px Arial"; ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(charge, 40 + paddleW /2, paddleY + paddleH /2);
-  }
-
-  if(maoBought && helperActive){
-    ctx.globalAlpha = 0.5; ctx.fillStyle = "#5af";
-    ctx.fillRect(40, helperY, 18, paddleH); ctx.globalAlpha=1;
-  }
-
-  function drawCannon(cx, cy, gray=false){
-    ctx.save(); ctx.translate(cx, cy);
-    ctx.rotate(Math.sin(cannonPhase*1.5)*0.15);
-    let baseColor = gray ? "#777" : (bossMode ? "#222" : "#933");
-    let inner1 = gray ? "#999" : (bossMode ? "#444" : "#c44");
-    let inner2 = gray ? "#bbb" : (bossMode ? "#666" : "#f66");
-    let inner3 = gray ? "#ddd" : (bossMode ? "#888" : "#fff6");
-    ctx.fillStyle=baseColor; ctx.fillRect(-40,-24,80,48);
-    ctx.fillStyle=inner1; ctx.fillRect(-36,-20,72,40);
-    ctx.fillStyle=inner2; ctx.fillRect(-30,-14,60,28);
-    ctx.fillStyle=inner3; ctx.fillRect(-28,-12,56,24);
-    ctx.restore();
-    if(gray){
-      ctx.font = "30px Arial"; ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.fillText("💤", cx, cy - 40);
-    }
-  }
-
-  drawCannon(W-80, cannonY, isParalyzed);
-  if(doubleDangerBought && !bossMode){ drawCannon(W-80, cannonY2, isParalyzed); }
-
-  // Diálogos do canhão cinza na fase final
-  if(bossMode && time - lastCannonTalk > 3000){
-    lastCannonTalk = time;
-    let phrase = cannonPhrases[currentPhraseIndex];
-    cannonTalk.innerHTML = phrase;
-    cannonTalk.style.left = (W - 220) + "px";
-    cannonTalk.style.top = (cannonY - 70) + "px";
-    currentPhraseIndex = (currentPhraseIndex + 1) % cannonPhrases.length;
-  }
-
-  let currentInterval = bossMode ? 500 : Math.max(500, 2200 - fireRateLevel*70);
-
-  if(!isParalyzed && time - lastShot > currentInterval && balls.length < maxBalls && (bossMode ? time - bossStartTime >5000 : true)){
-    lastShot = time;
-    let qty = bossMode ? 1 : 1 + ballsPerShotLevel;
-    for(let i=0;i<qty;i++){
-      setTimeout(()=>{
-        let newBall = bossMode ? new BigBall(cannonY) : new Ball(cannonY);
-        balls.push(newBall);
-        for(let j=0;j<20;j++){
-          let a=Math.random()*Math.PI+Math.PI/2;
-          let s=Math.random()*3+2;
-          particles.push(new Particle(W-120,cannonY,Math.cos(a)*s,Math.sin(a)*s,"#f84",3));
-        }
-      }, i*180);
-    }
-  }
-
-  if(doubleDangerBought && !bossMode && !isParalyzed && time - lastShot2 > currentInterval && balls.length < maxBalls){
-    lastShot2 = time;
-    let qty = 1 + ballsPerShotLevel;
-    for(let i=0;i<qty;i++){
-      setTimeout(()=>{
-        balls.push(new Ball(cannonY2));
-        for(let j=0;j<20;j++){
-          let a=Math.random()*Math.PI+Math.PI/2;
-          let s=Math.random()*3+2;
-          particles.push(new Particle(W-120,cannonY2,Math.cos(a)*s,Math.sin(a)*s,"#f84",3));
-        }
-      }, i*180);
-    }
-  }
-
-  // Desativa partículas se tiver 100+ bolas
-  const drawParticles = balls.length < 100;
-
-  for(let i=balls.length-1;i>=0;i--){
-    let alive = balls[i].update();
-    if(!alive) balls.splice(i,1);
-    else balls[i].draw();
-  }
-
-  for(let i=specialBalls.length-1;i>=0;i--){
-    let alive = specialBalls[i].update();
-    if(!alive) specialBalls.splice(i,1);
-    else specialBalls[i].draw();
-  }
-
-  for(let i=shockwaves.length-1;i>=0;i--){
-    let s = shockwaves[i];
-    let alive = s.update();
-    if(!alive) shockwaves.splice(i,1);
-    else s.draw();
-  }
-
-  for(let i=shuttles.length-1;i>=0;i--){
-    let alive = shuttles[i].update();
-    if(!alive) shuttles.splice(i,1);
-    else shuttles[i].draw();
-  }
-
-  if(drawParticles){
-    for(let i=particles.length-1;i>=0;i--){
-      let p = particles[i];
-      p.update();
-      p.draw();
-      if(p.life<=0) particles.splice(i,1);
-    }
-  } else {
-    particles = [];  // limpa tudo de uma vez
-  }
-
-  for(let i=scoreTexts.length-1;i>=0;i--){
-    let st = scoreTexts[i];
-    st.update();
-    st.draw();
-    if(st.life<=0) scoreTexts.splice(i,1);
-  }
-
-  if(!shieldActive && time - shieldCooldownTime > 30000){
-    shieldActive = true; shieldBlocks = maxShieldBlocks; playShieldSpawn();
-  }
-
-  if(shieldBlocks<=0 && shieldActive && !powerUpActive){
-    shieldActive=false; shieldCooldownTime=time; playShieldBreak();
-    for(let i=0;i<120;i++){
-      let a = Math.random()*Math.PI*2;
-      let s = Math.random()*6 + 3;
-      let px = 20 + Math.random()*10;
-      let py = Math.random()*H;
-      particles.push(new Particle(px, py, Math.cos(a)*s, Math.sin(a)*s, "#f88",6+Math.random()*4));
-    }
-    if(reforcadoBought){
-      shockwaves.push(new Shockwave());
-      for(let b of balls){
-        score += b.value; totalBallsRebounded++;
-        scoreTexts.push(new ScoreText(b.x,b.y,"+"+b.value));
-        for(let i=0;i<25;i++){
-          let a=Math.random()*Math.PI*2; let s=Math.random()*3+1;
-          particles.push(new Particle(b.x, b.y, Math.cos(a)*s, Math.sin(a)*s, b.color,4));
-        }
-      }
-      balls = [];
-    }
-  }
-
-  if(maoBought && !helperActive && time - helperCooldownTime >25000){
-    helperActive = true; helperRebounds = 0;
-  }
-
-  if(maoBought && helperActive){
-    let comingBalls = balls.filter(b => b.vx <0);
-    if(comingBalls.length >0){
-      comingBalls.sort((a,b)=>a.x - b.x);
-      let target = comingBalls[0];
-      helperY += (target.y - (helperY + paddleH/2)) * 0.4;
-    }
-    helperY = Math.max(0, Math.min(H-paddleH, helperY));
-  }
-
-  if(powerUpActive){
-    let secs = Math.ceil((powerUpEndTime - time)/1000);
-    let txt = powerUpType==='rainbow' ? 'Rainbow (x2 valor)' : powerUpType==='immortal' ? 'Escudo Imortal' : 'Velocidade x2';
-    ctx.font="24px Arial"; ctx.fillStyle="#fff"; ctx.textAlign="center";
-    ctx.fillText(`Power Up: ${txt} - ${secs}s`, W/2, H-20);
-  }
-
-  if(balls.length >= maxBalls){
-    ctx.font="30px Arial"; ctx.fillStyle="#fff"; ctx.textAlign="left";
-    ctx.fillText("Limite de bolas atingido! Canhões parados.", 50, 50);
-  }
-
-  scoreEl.textContent = `🏓${score}`;
-  checkUnlocks();
-
-  requestAnimationFrame(loop);
+    kb.appendChild(rowEl);
+  });
+  document.onkeydown = (e) => {
+    if (wGameOver) return;
+    const k = e.key.toUpperCase();
+    if (k === 'BACKSPACE') handleKey('⌫');
+    else if (k === 'ENTER') handleKey('ENTER');
+    else if (/^[A-ZÁÀÂÃÉÊÍÓÔÕÚÜÇ]$/.test(k)) handleKey(k);
+  };
 }
-loop();
+
+function highlightRow(r) {
+  const len = wWord.length;
+  for (let c = 0; c < len; c++) document.getElementById(`cell-${r}-${c}`).classList.add('active');
+}
+
+function handleKey(k) {
+  if (wGameOver) return;
+  const len = wWord.length;
+  if (k === '⌫') {
+    if (wCurrentCol > 0) { wCurrentCol--; document.getElementById(`cell-${wCurrentRow}-${wCurrentCol}`).textContent = ''; }
+  } else if (k === 'ENTER') {
+    if (wCurrentCol < len) { showToast(`Palavra precisa ter ${len} letras!`); shakRow(wCurrentRow); return; }
+    submitGuess();
+  } else {
+    if (wCurrentCol < len) { document.getElementById(`cell-${wCurrentRow}-${wCurrentCol}`).textContent = k; wCurrentCol++; }
+  }
+}
+
+function shakRow(r) {
+  const len = wWord.length;
+  for (let c = 0; c < len; c++) {
+    const cell = document.getElementById(`cell-${r}-${c}`);
+    cell.classList.remove('shake'); void cell.offsetWidth; cell.classList.add('shake');
+  }
+}
+
+function submitGuess() {
+  const len = wWord.length;
+  let guess = '';
+  for (let c = 0; c < len; c++) guess += document.getElementById(`cell-${wCurrentRow}-${c}`).textContent;
+  const result = evaluateGuess(guess, wWord);
+  result.forEach((state, c) => {
+    const cell = document.getElementById(`cell-${wCurrentRow}-${c}`);
+    setTimeout(() => { cell.classList.remove('active'); cell.classList.add(state); }, c * 120);
+  });
+  setTimeout(() => {
+    result.forEach((state, c) => {
+      const letter = guess[c];
+      const priority = {correct:3,present:2,absent:1};
+      if (!wKeyState[letter] || priority[state] > priority[wKeyState[letter]]) wKeyState[letter] = state;
+    });
+    document.querySelectorAll('.kb-key').forEach(btn => {
+      const letter = btn.dataset.key;
+      if (wKeyState[letter]) { btn.classList.remove('correct','present','absent'); btn.classList.add(wKeyState[letter]); }
+    });
+    const isWin = result.every(s => s === 'correct');
+    if (isWin) {
+      wGameOver = true; document.onkeydown = null;
+      sfxCorrect();
+      setTimeout(() => {
+        showToast('🎉 Você acertou!');
+        totalScore += (5 - wCurrentRow) * 20 + 50; totalWins++; gamesPlayed++;
+        sfxPoints(); saveState();
+        checkDailyProgress('wordle', { row: wCurrentRow });
+        setTimeout(() => showWordleResult(true), 1200);
+      }, 600);
+    } else {
+      sfxWrong();
+      wCurrentRow++;
+      if (wCurrentRow >= 5) {
+        wGameOver = true; document.onkeydown = null;
+        setTimeout(() => {
+          showToast(`A palavra era: ${wWord}`);
+          gamesPlayed++; saveState();
+          setTimeout(() => showWordleResult(false), 1500);
+        }, 700);
+      } else { wCurrentCol = 0; highlightRow(wCurrentRow); }
+    }
+  }, len * 120 + 200);
+}
+
+function evaluateGuess(guess, word) {
+  const len = word.length;
+  const result = Array(len).fill('absent');
+  const wordArr = word.split(''); const guessArr = guess.split(''); const used = Array(len).fill(false);
+  for (let i = 0; i < len; i++) { if (guessArr[i] === wordArr[i]) { result[i] = 'correct'; used[i] = true; } }
+  for (let i = 0; i < len; i++) {
+    if (result[i] === 'correct') continue;
+    for (let j = 0; j < len; j++) { if (!used[j] && guessArr[i] === wordArr[j]) { result[i] = 'present'; used[j] = true; break; } }
+  }
+  return result;
+}
+
+function showWordleResult(won) {
+  const ga = document.getElementById('game-area');
+  ga.innerHTML = `
+    <div class="result-screen">
+      <div class="result-emoji">${won ? '🏆' : '😔'}</div>
+      <div class="result-title" style="color:${won?'var(--green)':'var(--accent2)'}">${won ? 'ACERTOU!' : 'QUASE LÁ'}</div>
+      <div class="result-score">${won ? `+${(5-wCurrentRow)*20+50} pontos` : `A palavra era: <strong>${wWord}</strong>`}</div>
+      <button class="play-again-btn" onclick="initWordle()">JOGAR NOVAMENTE</button>
+      <button class="back-btn" style="margin-top:8px" onclick="goMenu()">← VOLTAR AO MENU</button>
+    </div>`;
+  document.onkeydown = null;
+}
+
+// ══════════════════════════════════════════════════════
+//  MATH DIFFICULTY SELECT
+// ══════════════════════════════════════════════════════
+function showMathDiffSelect() {
+  document.getElementById('game-title').textContent = '🧮 MATEMÁTICA';
+  document.getElementById('lives-display').textContent = '';
+  const ga = document.getElementById('game-area');
+  ga.innerHTML = `
+    <div style="display:flex;flex-direction:column;align-items:center;gap:28px;padding:40px 20px;text-align:center">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;letter-spacing:3px;color:var(--accent)">ESCOLHA A DIFICULDADE</div>
+      <div style="font-size:13px;color:var(--text2)">Selecione o nível antes de começar</div>
+      <div class="diff-select">
+        <button class="diff-btn" onclick="initQuizWithData('historia_facil')">
+          📗 MÉDIO<br><span style="font-size:11px;letter-spacing:1px;font-family:Space Mono,monospace">Básico e Intermediário</span>
+        </button>
+        <button class="diff-btn hard" onclick="initQuizWithData('historia')">
+          🔥 DIFÍCIL<br><span style="font-size:11px;letter-spacing:1px;font-family:Space Mono,monospace">Cálculo, Log, Derivada</span>
+        </button>
+      </div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════════════════
+//  QUIZ ENGINE
+// ══════════════════════════════════════════════════════
+const QUIZ_DATA = {
+  minecraft: { title: '⛏️ MINECRAFT QUIZ', questions: MINECRAFT_Q, color: '#4ade80' },
+  filmes: { title: '🎬 FILMES QUIZ', questions: FILMES_Q, color: '#f472b6' },
+  games: { title: '🎮 GAMES QUIZ', questions: GAMES_Q, color: '#38bdf8' },
+  musica: { title: '🎵 MÚSICA QUIZ', questions: MUSICA_Q, color: '#fb923c' },
+  historia: { title: '🧮 MATEMÁTICA DIFÍCIL', questions: HISTORIA_Q, color: '#fbbf24' },
+  historia_facil: { title: '🧮 MATEMÁTICA MÉDIO', questions: MATEMATICA_FACIL, color: '#86efac' },
+  ciencia: { title: '🔬 CIÊNCIA QUIZ', questions: CIENCIA_Q, color: '#34d399' },
+};
+
+let qState = {};
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function initQuiz(type) { initQuizWithData(type); }
+
+function initQuizWithData(type) {
+  const data = QUIZ_DATA[type];
+  document.getElementById('game-title').textContent = data.title;
+  document.getElementById('lives-display').textContent = '';
+  document.onkeydown = null;
+  const shuffled = shuffle(data.questions).slice(0, 15);
+  qState = { type, data, questions: shuffled, current: 0, score: 0, correct: 0, startTime: Date.now() };
+  renderQuestion();
+}
+
+function renderQuestion() {
+  const { questions, current, data } = qState;
+  if (current >= questions.length) { showQuizResult(); return; }
+  const q = questions[current];
+  const progress = ((current / questions.length) * 100).toFixed(0);
+  document.getElementById('lives-display').textContent = `${current+1}/${questions.length}`;
+  const correctText = q.o[q.a];
+  const shuffledOpts = shuffle(q.o);
+  const newCorrectIdx = shuffledOpts.indexOf(correctText);
+  qState._shuffledOpts = shuffledOpts;
+  qState._correctIdx = newCorrectIdx;
+  const ga = document.getElementById('game-area');
+  ga.innerHTML = `
+    <div class="quiz-wrap">
+      <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+      <div class="quiz-category" style="color:${data.color}">${data.title}</div>
+      <div class="quiz-question">${q.q}</div>
+      <div class="quiz-options" id="qopts">
+        ${shuffledOpts.map((opt,i) => `<button class="quiz-opt" id="opt-${i}" onclick="selectAnswer(${i})">${opt}</button>`).join('')}
+      </div>
+      <div id="qfeedback" style="display:none"></div>
+      <div id="qnext" style="display:none"><button class="next-btn" onclick="nextQuestion()">PRÓXIMA →</button></div>
+    </div>`;
+}
+
+function selectAnswer(idx) {
+  sfxClick();
+  const q = qState.questions[qState.current];
+  const correctIdx = qState._correctIdx;
+  const opts = document.querySelectorAll('.quiz-opt');
+  opts.forEach(o => o.classList.add('disabled'));
+  opts[idx].classList.add(idx === correctIdx ? 'correct' : 'wrong');
+  if (idx !== correctIdx) opts[correctIdx].classList.add('correct');
+  const isCorrect = idx === correctIdx;
+  if (isCorrect) { qState.score += 10; qState.correct++; sfxCorrect(); sfxPoints(); }
+  else sfxWrong();
+  const fb = document.getElementById('qfeedback');
+  fb.className = `quiz-feedback ${isCorrect ? 'good' : 'bad'}`;
+  fb.innerHTML = `${isCorrect ? '✅ Correto!' : '❌ Errado!'} — ${q.f}`;
+  fb.style.display = 'block';
+  document.getElementById('qnext').style.display = 'block';
+}
+
+function nextQuestion() {
+  sfxClick();
+  qState.current++;
+  renderQuestion();
+}
+
+function showQuizResult() {
+  const { score, correct, questions, data, type, startTime } = qState;
+  const total = questions.length;
+  const pct = Math.round((correct/total)*100);
+  const elapsed = Math.round((Date.now()-startTime)/1000);
+  let emoji, msg;
+  if (pct>=90) { emoji='🏆'; msg='INCRÍVEL!'; }
+  else if (pct>=70) { emoji='⭐'; msg='MUITO BOM!'; }
+  else if (pct>=50) { emoji='👍'; msg='BOM TRABALHO'; }
+  else { emoji='📚'; msg='ESTUDE MAIS!'; }
+  totalScore += score; gamesPlayed++;
+  if (pct >= 50) totalWins++;
+  sfxCorrect(); saveState();
+  checkDailyProgress(type, { pct, correct, elapsed, score });
+  const ga = document.getElementById('game-area');
+  ga.innerHTML = `
+    <div class="result-screen">
+      <div class="result-emoji">${emoji}</div>
+      <div class="result-title" style="color:${data.color}">${msg}</div>
+      <div class="result-score">
+        <strong>${correct}/${total}</strong>
+        ${pct}% de acertos · +${score} pontos · ${elapsed}s
+      </div>
+      <button class="play-again-btn" onclick="initQuizWithData('${type}')">JOGAR NOVAMENTE</button>
+      <button class="back-btn" style="margin-top:8px" onclick="goMenu()">← MENU PRINCIPAL</button>
+    </div>`;
+  document.getElementById('lives-display').textContent = '';
+}
+
+// ══════════════════════════════════════════════════════
+//  ANIMAIS BRASILEIROS ENGINE
+// ══════════════════════════════════════════════════════
+const ANIMAIS_DICAS = {
+  'Onça-pintada': 'Maior felino das Américas, pode chegar a 100kg. Vive no Pantanal e na Amazônia. Diferente da leoparda, tem pintas com pontinhos no centro.',
+  'Tamanduá-bandeira': 'Não tem dentes! Come até 35.000 formigas por dia com sua língua de 60cm. Pode chegar a 2 metros de comprimento.',
+  'Capivara': 'Maior roedor do mundo! Semi-aquático, pesa até 80kg. Vive em grupos e é famosa por se dar bem com qualquer animal.',
+  'Mico-leão-dourado': 'Primata ameaçado com pelagem laranja-dourada vibrante. Vive na Mata Atlântica do Rio de Janeiro. Pesa apenas 600g.',
+  'Lobo-guará': 'Maior canídeo da América do Sul, tem pernas longas para enxergar por sobre o capim. Come até fruta-do-lobo (lobeira)!',
+  'Tatu-bola': 'Único tatu que se enrola em bola perfeita como mecanismo de defesa. Mede cerca de 40cm e vive em áreas abertas do Brasil.',
+  'Arara-azul': 'Maior papagaio do mundo! Asa azul-cobalto, pode viver 60 anos. Ameaçada de extinção, protegida no Pantanal.',
+  'Boto-cor-de-rosa': 'Único golfinho de água doce rosado do mundo! Vive na Amazônia e no Pantanal. Na lenda, vira homem para seduzir.',
+  'Sabiá-laranjeira': 'Pássaro nacional do Brasil! Canta ao amanhecer, tem peito laranja e é símbolo da saudade na literatura brasileira.',
+  'Piranha-vermelha': 'Peixe carnívoro com dentes serrilhados do Pantanal e Amazônia. Em realidade, ataca raramente humanos sadios.',
+  'Pirarucu': 'Um dos maiores peixes de água doce do mundo, pode chegar a 3 metros e 200kg. Respira ar e precisa subir à superfície.',
+  'Jacaré-açu': 'Açu significa "grande" em tupi. É o maior crocodiliano das Américas, podendo chegar a 6 metros. Vive na Amazônia.',
+  'Anta-brasileira': 'Maior mamífero terrestre da América do Sul! Usa a tromba curta para pegar folhas. É prima distante do rinoceronte.',
+  'Quati': 'Mamífero com focinho longo e cauda listrada. Vive em grupos de até 30 fêmeas. Come insetos, frutas e pequenos animais.',
+  'Morcego-vampiro': 'Único mamífero que se alimenta exclusivamente de sangue. Faz corte no couro de animais com dentes afiados, não suga.',
+  'Tucano-toco': 'Tem o maior bico em proporção ao corpo entre as aves! O bico amarelo-laranja serve para regular temperatura corporal.',
+  'Gavião-real': 'Maior ave de rapina das Américas, pesa até 9kg. Caça macacos e preguiças nas copas da floresta amazônica.',
+  'Jaguatirica': 'Felino de médio porte com pelagem malhada. Excelente nadadora e trepadora. Vive da Amazônia à Argentina.',
+  'Veado-campeiro': 'Maior cervídeo do Brasil, com chifres ramificados. Vive no Cerrado e Campos do Sul. Hoje ameaçado de extinção.',
+  'Peixe-boi-da-Amazônia': 'Único sirênio de água doce do mundo! Pode pesar 500kg. Come macrófitas aquáticas e é primo da dugonga.'
+};
+
+let aState = {};
+
+function initAnimais() {
+  document.getElementById('game-title').textContent = '🐆 ANIMAIS BR';
+  document.getElementById('lives-display').textContent = '';
+  document.onkeydown = null;
+  const shuffledAnimals = shuffle(ANIMAIS_BR).slice(0, 12);
+  aState = { animals: shuffledAnimals, current: 0, score: 0, correct: 0, feedback_shown: false, selected: [] };
+  renderAnimal();
+}
+
+function renderAnimal() {
+  if (aState.current >= aState.animals.length) { showAnimaisResult(); return; }
+  const animal = aState.animals[aState.current];
+  const total = aState.animals.length;
+  const progress = ((aState.current / total) * 100).toFixed(0);
+  document.getElementById('lives-display').textContent = `${aState.current+1}/${total}`;
+  const dica = ANIMAIS_DICAS[animal.name] || 'Animal nativo do Brasil.';
+  const pool = shuffle([...animal.parts, ...animal.fakes]);
+  const ga = document.getElementById('game-area');
+  ga.innerHTML = `
+    <div class="animais-wrap">
+      <div class="progress-bar" style="margin-bottom:4px"><div class="progress-fill" style="width:${progress}%"></div></div>
+      <div class="animais-instruction">🐾 Monte o nome deste animal brasileiro:</div>
+      <div class="animais-dica"><strong>Dica:</strong> ${dica}</div>
+      <div class="animais-hint">⚠️ Clique nas peças na ordem certa — há peças falsas!</div>
+      <div class="animais-drop-zone" id="a-drop"><span style="color:var(--border);font-size:13px">Clique nas peças abaixo...</span></div>
+      <div class="animais-pool" id="a-pool">
+        ${pool.map((p,i) => `<div class="a-chip" data-val="${p}" data-idx="${i}" onclick="selectChip(this)">${p}</div>`).join('')}
+      </div>
+      <div class="animais-actions" id="a-actions">
+        <button class="back-btn" onclick="clearSelection()">↺ Limpar</button>
+        <button class="next-btn" onclick="checkAnimal()">VERIFICAR ✓</button>
+      </div>
+      <div id="a-feedback" style="display:none"></div>
+      <div id="a-next" style="display:none"><button class="next-btn" onclick="nextAnimal()">PRÓXIMO ANIMAL →</button></div>
+    </div>`;
+  aState.feedback_shown = false;
+  aState.selected = [];
+}
+
+function selectChip(el) {
+  if (el.classList.contains('used') || aState.feedback_shown) return;
+  sfxClick();
+  el.classList.add('used');
+  const drop = document.getElementById('a-drop');
+  if (drop.querySelector('span')) drop.querySelector('span').remove();
+  aState.selected.push(el.dataset.val);
+  const tag = document.createElement('div');
+  tag.className = 'a-drop-chip';
+  tag.textContent = el.dataset.val;
+  tag.dataset.val = el.dataset.val;
+  tag.dataset.srcIdx = el.dataset.idx;
+  tag.onclick = () => unselectChip(tag, el);
+  drop.appendChild(tag);
+}
+
+function unselectChip(tag, srcEl) {
+  if (aState.feedback_shown) return;
+  sfxClick();
+  tag.remove();
+  document.querySelector(`.a-chip[data-idx="${tag.dataset.srcIdx}"]`).classList.remove('used');
+  aState.selected = Array.from(document.querySelectorAll('#a-drop .a-drop-chip')).map(d=>d.dataset.val);
+  if (!document.querySelectorAll('#a-drop .a-drop-chip').length) {
+    document.getElementById('a-drop').innerHTML = '<span style="color:var(--border);font-size:13px">Clique nas peças abaixo...</span>';
+  }
+}
+
+function clearSelection() {
+  if (aState.feedback_shown) return;
+  sfxClick();
+  document.getElementById('a-drop').innerHTML = '<span style="color:var(--border);font-size:13px">Clique nas peças abaixo...</span>';
+  document.querySelectorAll('.a-chip').forEach(c=>c.classList.remove('used'));
+  aState.selected = [];
+}
+
+function checkAnimal() {
+  sfxClick();
+  const animal = aState.animals[aState.current];
+  const correct = animal.parts.join('');
+  const guess = aState.selected.join('');
+  aState.feedback_shown = true;
+  const isCorrect = guess === correct;
+  document.querySelectorAll('#a-drop .a-drop-chip').forEach((chip, i) => {
+    if (i < animal.parts.length && chip.dataset.val === animal.parts[i]) {
+      chip.style.background = 'rgba(74,222,128,0.25)'; chip.style.borderColor='var(--green)'; chip.style.color='var(--green)';
+    } else {
+      chip.style.background='rgba(255,79,109,0.15)'; chip.style.borderColor='var(--accent2)'; chip.style.color='var(--accent2)';
+    }
+  });
+  if (isCorrect) { aState.score += 15; aState.correct++; sfxCorrect(); sfxPoints(); }
+  else sfxWrong();
+  const fb = document.getElementById('a-feedback');
+  fb.className = `quiz-feedback ${isCorrect?'good':'bad'}`;
+  fb.innerHTML = `${isCorrect?'✅ Correto!':'❌ Errado!'} — O nome completo é: <strong>${animal.name}</strong>`;
+  fb.style.display = 'block';
+  document.getElementById('a-next').style.display = 'block';
+  document.getElementById('a-actions').style.display = 'none';
+}
+
+function nextAnimal() {
+  sfxClick();
+  aState.current++;
+  aState.feedback_shown = false;
+  aState.selected = [];
+  renderAnimal();
+}
+
+function showAnimaisResult() {
+  const { score, correct, animals } = aState;
+  const total = animals.length;
+  const pct = Math.round((correct/total)*100);
+  let emoji, msg;
+  if (pct>=90){emoji='🏆';msg='INCRÍVEL!';}
+  else if(pct>=70){emoji='⭐';msg='MUITO BOM!';}
+  else if(pct>=50){emoji='👍';msg='BOM TRABALHO';}
+  else{emoji='📚';msg='PRATIQUE MAIS!';}
+  totalScore+=score; gamesPlayed++;
+  if(pct>=50) totalWins++;
+  sfxCorrect(); saveState();
+  checkDailyProgress('animais', {correct});
+  const ga = document.getElementById('game-area');
+  ga.innerHTML = `
+    <div class="result-screen">
+      <div class="result-emoji">${emoji}</div>
+      <div class="result-title" style="color:#4ade80">${msg}</div>
+      <div class="result-score"><strong>${correct}/${total}</strong> ${pct}% · +${score} pontos</div>
+      <button class="play-again-btn" onclick="initAnimais()">JOGAR NOVAMENTE</button>
+      <button class="back-btn" style="margin-top:8px" onclick="goMenu()">← MENU PRINCIPAL</button>
+    </div>`;
+  document.getElementById('lives-display').textContent='';
+}
+
+// ══════════════════════════════════════════════════════
+//  DAILY PROGRESS CHECK
+// ══════════════════════════════════════════════════════
+function checkDailyProgress(gameType, stats) {
+  if (!dailyState) return;
+  dailyState.challenges.forEach((c, i) => {
+    if (dailyState.completed.includes(i)) return;
+    let done = false;
+    if (c.game === gameType || c.game === 'any') {
+      if (c.goal === 'score80' && stats.pct >= 80) done = true;
+      if (c.goal === 'correct10' && stats.correct >= 10) done = true;
+      if (c.goal === 'correct8' && stats.correct >= 8) done = true;
+      if (c.goal === 'correct12' && stats.correct >= 12) done = true;
+      if (c.goal === 'score70' && stats.pct >= 70) done = true;
+      if (c.goal === 'perfect' && stats.pct === 100) done = true;
+      if (c.goal === 'fast' && stats.row !== undefined && stats.row <= 1) done = true;
+      if (c.goal === 'fast2min' && stats.elapsed && stats.elapsed < 120) done = true;
+      if (c.goal === 'pts150' && stats.score >= 150) done = true;
+    }
+    if (done) {
+      dailyState.completed.push(i);
+      lsSet('aq_daily', JSON.stringify(dailyState));
+      showToast(`🎯 Desafio "${c.title}" concluído!`);
+      sfxPoints();
+      totalScore += 25; saveState();
+    }
+  });
+}
 </script>
 </body>
 </html>
